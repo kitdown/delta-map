@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Глобальная карта сотрудников</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+      :root { color-scheme: light dark; }
+      html, body {
+        height: 100%;
+        margin: 0;
+        font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+      }
+      header {
+        padding: 14px 18px;
+        background: #0ea5e9;
+        color: #fff;
+      }
+      header h1 { margin: 0; font-size: 22px; }
+      header p { margin: 6px 0 0; font-size: 14px; }
+      #map { height: calc(100vh - 70px); width: 100%; }
+      .legend {
+        position: absolute;
+        top: 90px;
+        right: 16px;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 10px 12px;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.18);
+        color: #0f172a;
+        font-size: 14px;
+        min-width: 160px;
+      }
+      .legend strong { display: block; font-size: 16px; }
+      .legend small { display: block; color: #475569; margin-top: 4px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Глобальная карта сотрудников</h1>
+      <p>Данные подтягиваются напрямую из Google Таблицы</p>
+    </header>
+    <div id="map"></div>
+    <div class="legend">
+      <strong>Всего: <span id="counter">0</span></strong>
+      <small id="updated">Загрузка…</small>
+    </div>
+    <script>
+      // Источники данных: pubhtml (основной) и CSV (резервный)
+      const PUBHTML_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTS5jCWR5xK5gE8LVPGdrJHJGTNvovm5A4ox7N0qWaepCR_hoa2FM54RFnyOH3ytNpZtAWRW9VL-CjR/pubhtml?gid=0&single=true";
+      const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTS5jCWR5xK5gE8LVPGdrJHJGTNvovm5A4ox7N0qWaepCR_hoa2FM54RFnyOH3ytNpZtAWRW9VL-CjR/pub?gid=0&single=true&output=csv";
+
+      const map = L.map("map", { worldCopyJump: true }).setView([20, 0], 2);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 18,
+        attribution: "&copy; OpenStreetMap contributors",
+      }).addTo(map);
+
+      const markers = L.layerGroup().addTo(map);
+
+      function parseCsv(text) {
+        // Простейший CSV-парсер для значений без переводов строк и с запятыми-разделителями
+        const lines = text.trim().split(/\r?\n/);
+        if (lines.length <= 1) return [];
+        // Первая строка — заголовки
+        const rows = [];
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(","); // достаточно для нашего формата
+          // Ожидаемые колонки: Name, Role, City, Country, Latitude, Longitude, Timestamp
+          rows.push(cols);
+        }
+        return rows;
+      }
+
+      function parsePubHtml(html) {
+        // Разбираем опубликованный HTML Google Sheets и вытаскиваем первую таблицу с данными
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
+        // В публикуемом HTML у Google таблицы обычно внутри .grid-container table
+        const table = doc.querySelector("table");
+        if (!table) return [];
+        const rows = [];
+        const trList = table.querySelectorAll("tr");
+        if (trList.length <= 1) return [];
+        for (let i = 1; i < trList.length; i++) { // пропускаем заголовок
+          const cells = Array.from(trList[i].querySelectorAll("td")).map(td => td.textContent.trim());
+          if (cells.length >= 6) {
+            rows.push(cells.slice(0, 6)); // Name, Role, City, Country, Latitude, Longitude
+          }
+        }
+        return rows.filter(cols => cols[4] && cols[5]); // только с координатами
+      }
+
+      async function loadData() {
+        try {
+          // Сначала пробуем pubhtml (не требует специальных разрешений gviz)
+          let rows = [];
+          try {
+            const htmlResp = await fetch(PUBHTML_URL, { cache: "no-store" });
+            if (htmlResp.ok) {
+              const html = await htmlResp.text();
+              rows = parsePubHtml(html);
+            }
+          } catch (e) {
+            console.warn("PUBHTML load failed, fallback to CSV", e);
+          }
+          // Если pubhtml не дал данных — пробуем CSV как резерв
+          if (rows.length === 0) {
+            const response = await fetch(CSV_URL, { cache: "no-store" });
+            if (!response.ok) throw new Error("Не удалось получить CSV");
+            const csv = await response.text();
+            rows = parseCsv(csv).filter(cells => cells.length >= 6 && cells[4] && cells[5]);
+          }
+
+          document.getElementById("counter").textContent = rows.length;
+          document.getElementById("updated").textContent = "Последнее обновление: " + new Date().toLocaleString();
+
+          markers.clearLayers();
+
+          rows.forEach(([name, role, city, country, lat, lng]) => {
+            const info = `
+              <strong>${name || "Сотрудник"}</strong><br/>
+              ${role || "Роль не указана"}<br/>
+              ${[city, country].filter(Boolean).join(", ")}<br/>
+              <small>${lat}, ${lng}</small>
+            `;
+            L.marker([parseFloat(lat), parseFloat(lng)])
+              .addTo(markers)
+              .bindPopup(info);
+          });
+
+          if (rows.length) {
+            const bounds = L.latLngBounds(rows.map(([, , , , lat, lng]) => [parseFloat(lat), parseFloat(lng)]));
+            map.fitBounds(bounds.pad(0.2));
+          }
+        } catch (error) {
+          console.error(error);
+          document.getElementById("updated").textContent = "Ошибка загрузки данных. Проверьте публикацию CSV.";
+        }
+      }
+
+      loadData();
+      setInterval(loadData, 60 * 1000); // автообновление раз в минуту
+    </script>
+  </body>
+</html>
+

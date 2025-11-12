@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Анкета сотрудника</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+        margin: 0;
+        background: #f8fafc;
+      }
+      main {
+        max-width: 520px;
+        margin: 40px auto;
+        background: rgba(255,255,255,0.95);
+        padding: 28px 32px;
+        border-radius: 16px;
+        box-shadow: 0 20px 40px rgba(15,23,42,0.15);
+      }
+      h1 { margin-top: 0; font-size: 24px; color: #0f172a; }
+      p { color: #475569; }
+      label { display: block; margin: 14px 0 6px; font-weight: 600; color: #1e293b; }
+      input {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid #cbd5f5;
+        font-size: 15px;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+      input:focus {
+        outline: none;
+        border-color: #0ea5e9;
+        box-shadow: 0 0 0 3px rgba(14,165,233,0.2);
+      }
+      button {
+        margin-top: 18px;
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        background: #0ea5e9;
+        color: #fff;
+      }
+      button:hover {
+        background: #0284c7;
+      }
+      .hint { font-size: 13px; color: #64748b; margin-top: 6px; }
+      .success, .error {
+        margin-top: 16px;
+        padding: 12px;
+        border-radius: 10px;
+        font-size: 14px;
+      }
+      .success { background: rgba(16,185,129,0.15); color: #047857; }
+      .error { background: rgba(239,68,68,0.15); color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Отметить себя на карте</h1>
+      <p>Просто заполните форму — данные автоматически попадут в Google Таблицу и появятся на общей карте.</p>
+      <form id="employee-form">
+        <label for="name">Имя / Ник</label>
+        <input id="name" name="name" placeholder="Например, Анна Иванова или @username" required />
+
+        <label for="role">Роль / команда</label>
+        <input id="role" name="role" placeholder="Например, Продуктовый дизайнер" />
+
+        <label for="city">Город</label>
+        <input id="city" name="city" placeholder="Например, Москва" required />
+
+        <label for="country">Страна</label>
+        <input id="country" name="country" placeholder="Например, Россия" required />
+
+        <button type="submit">Отправить</button>
+        <div id="status"></div>
+      </form>
+    </main>
+    <script>
+      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzEyeMFWzQmoIEK7wVk7mYtS9YYSqWf2QZDafmv1vcxdOjxBtSOM3WgNJ1Dsq6ENPgo/exec"; // Web App Apps Script
+
+      const form = document.getElementById("employee-form");
+      const status = document.getElementById("status");
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        status.innerHTML = "";
+
+        const formData = new FormData(form);
+        status.textContent = "Определяем координаты…";
+
+        const city = formData.get("city");
+        const country = formData.get("country");
+
+        let latitude = "";
+        let longitude = "";
+
+        try {
+          const geoResponse = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(`${city}, ${country}`)}`,
+            {
+              headers: {
+                "Accept": "application/json",
+                "User-Agent": "employee-map-demo/1.0",
+              },
+            }
+          );
+          if (geoResponse.ok) {
+            const results = await geoResponse.json();
+            if (Array.isArray(results) && results.length > 0) {
+              latitude = results[0].lat;
+              longitude = results[0].lon;
+            }
+          }
+        } catch (geoError) {
+          console.warn("Geocoding failed", geoError);
+        }
+
+        formData.set("latitude", latitude);
+        formData.set("longitude", longitude);
+
+        try {
+          const response = await fetch(SCRIPT_URL, {
+            method: "POST",
+            mode: "cors",
+            body: formData,
+          });
+          if (!response.ok) throw new Error("Ошибка отправки");
+
+          const message = document.createElement("div");
+          message.className = "success";
+          message.textContent = "Готово! Данные сохранены в Google Таблицу.";
+          status.appendChild(message);
+          form.reset();
+        } catch (error) {
+          console.error(error);
+          const message = document.createElement("div");
+          message.className = "error";
+          message.textContent = "Не удалось отправить. Проверьте ссылку на Web App или включите CORS.";
+          status.appendChild(message);
+        }
+      });
+    </script>
+  </body>
+</html>
+
