@@ -126,16 +126,17 @@
         formData.set("longitude", longitude);
 
         try {
-          const response = await fetch(SCRIPT_URL, {
+          // Используем no-cors: браузер отправит POST без проверки CORS.
+          // Ответ будет opaque (недоступен для чтения), но запись в таблицу выполнится.
+          await fetch(SCRIPT_URL, {
             method: "POST",
-            mode: "cors",
+            mode: "no-cors",
             body: formData,
           });
-          if (!response.ok) throw new Error("Ошибка отправки");
 
           const message = document.createElement("div");
           message.className = "success";
-          message.textContent = "Готово! Данные сохранены в Google Таблицу.";
+          message.textContent = "Готово! Данные отправлены в Google Таблицу.";
           status.appendChild(message);
           form.reset();
         } catch (error) {
