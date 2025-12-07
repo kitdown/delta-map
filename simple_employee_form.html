@@ -328,6 +328,7 @@
       const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95aG10bmNocmtiandyZXNjd2hiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxMzc1NzIsImV4cCI6MjA4MDcxMzU3Mn0.INzUm32z_e7HWKpdABPZUUQ9JSzu-QM9o05spfXkJ0k";
       const SUPABASE_TABLE = "people";
       const SUPABASE_INSERT_URL = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`;
+      const YANDEX_GEOCODER_KEY = "20a74025-7604-45eb-b8ea-f13ff645b5cf"; // Геокодер Яндекс
 
       const form = document.getElementById("employee-form");
       const status = document.getElementById("status");
@@ -411,51 +412,119 @@
         const formData = new FormData(form);
         const city = formData.get("city");
         const country = formData.get("country");
+        const name = formData.get("name") || "";
+        const role = formData.get("role") || "";
+
+        // Простая проверка: только кириллица, не более 3 слов, без мата
+        const badWords = ["хуй","пизд","еб","сука","бляд","дерьмо","shit","fuck"];
+        function validateText(value, label) {
+          const trimmed = (value || "").trim();
+          if (!trimmed) return { ok: false, msg: `${label}: заполните поле` };
+          const words = trimmed.split(/\s+/);
+          if (words.length > 3) return { ok: false, msg: `${label}: не более 3 слов` };
+          if (!/^[А-Яа-яЁё\s\-]+$/.test(trimmed)) return { ok: false, msg: `${label}: только кириллица` };
+          const lower = trimmed.toLowerCase();
+          if (badWords.some(w => lower.includes(w))) return { ok: false, msg: `${label}: недопустимая лексика` };
+          return { ok: true };
+        }
+
+        const checks = [
+          validateText(name, "Имя / ник"),
+          validateText(role, "Роль"),
+          validateText(city, "Город"),
+          validateText(country, "Страна")
+        ];
+
+        const failed = checks.find(c => !c.ok);
+        if (failed) {
+          status.innerHTML = "";
+          const msg = document.createElement("div");
+          msg.className = "error";
+          msg.textContent = failed.msg;
+          status.appendChild(msg);
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Отправить";
+          resetProgress();
+          return;
+        }
 
         let latitude = "";
         let longitude = "";
         let timeoutId = null;
 
-        try {
-          // Добавляем таймаут для geocoding запроса
+        async function geocodeNominatim(query) {
           const controller = new AbortController();
-          timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд таймаут
-          
-          const geoResponse = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(`${city}, ${country}`)}`,
-            {
-              headers: {
-                "Accept": "application/json",
-                "User-Agent": "employee-map-demo/1.0",
-              },
-              signal: controller.signal
+          const to = setTimeout(() => controller.abort(), 10000);
+          try {
+            const resp = await fetch(
+              `https://nominatim.openstreetmap.org/search?format=json&limit=3&accept-language=ru&q=${encodeURIComponent(query)}`,
+              {
+                headers: {
+                  "Accept": "application/json",
+                  "User-Agent": "employee-map-demo/1.0",
+                },
+                signal: controller.signal
+              }
+            );
+            clearTimeout(to);
+            if (!resp.ok) return null;
+            const arr = await resp.json();
+            if (Array.isArray(arr) && arr.length > 0) {
+              return { lat: arr[0].lat, lon: arr[0].lon };
             }
-          );
-          
-          clearTimeout(timeoutId);
-          
-          if (geoResponse.ok) {
-            const results = await geoResponse.json();
-            if (Array.isArray(results) && results.length > 0) {
-              latitude = results[0].lat;
-              longitude = results[0].lon;
-              console.log("Координаты найдены:", latitude, longitude);
-            } else {
-              console.warn("Координаты не найдены для:", city, country);
-            }
-          } else {
-            console.warn("Geocoding API вернул ошибку:", geoResponse.status);
+            return null;
+          } catch (e) {
+            clearTimeout(to);
+            return null;
           }
+        }
+
+        async function geocodeYandex(query) {
+          const controller = new AbortController();
+          const to = setTimeout(() => controller.abort(), 10000);
+          try {
+            const resp = await fetch(
+              `https://geocode-maps.yandex.ru/1.x/?apikey=${YANDEX_GEOCODER_KEY}&format=json&lang=ru_RU&results=3&geocode=${encodeURIComponent(query)}`,
+              { signal: controller.signal }
+            );
+            clearTimeout(to);
+            if (!resp.ok) return null;
+            const data = await resp.json();
+            const members = data?.response?.GeoObjectCollection?.featureMember;
+            if (Array.isArray(members) && members.length > 0) {
+              const pos = members[0]?.GeoObject?.Point?.pos;
+              if (pos) {
+                const [lon, lat] = pos.split(" ");
+                return { lat, lon };
+              }
+            }
+            return null;
+          } catch (e) {
+            clearTimeout(to);
+            return null;
+          }
+        }
+
+        try {
+          const query = `${city}, ${country}`;
+          let geo = await geocodeNominatim(query);
+          if (!geo) {
+            console.warn("Nominatim не нашел координаты, пробуем Yandex");
+            geo = await geocodeYandex(query);
+          }
+
+          if (geo) {
+            latitude = geo.lat;
+            longitude = geo.lon;
+            console.log("Координаты найдены:", latitude, longitude);
+          } else {
+            console.warn("Координаты не найдены для:", query);
+          }
+
           setStepCompleted(stepGeo);
           setProgress(40);
         } catch (geoError) {
-          clearTimeout(timeoutId);
-          if (geoError.name === 'AbortError') {
-            console.warn("Geocoding timeout - запрос занял слишком много времени");
-            status.textContent = "Предупреждение: не удалось определить координаты автоматически. Продолжаем отправку...";
-          } else {
-            console.warn("Geocoding failed", geoError);
-          }
+          console.warn("Geocoding failed", geoError);
           setStepCompleted(stepGeo);
           setProgress(40);
         }
