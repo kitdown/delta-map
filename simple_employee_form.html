@@ -46,9 +46,15 @@
         cursor: pointer;
         background: #0ea5e9;
         color: #fff;
+        transition: background 0.2s, opacity 0.2s;
       }
-      button:hover {
+      button:hover:not(:disabled) {
         background: #0284c7;
+      }
+      button:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+        opacity: 0.7;
       }
       .hint { font-size: 13px; color: #64748b; margin-top: 6px; }
       .success, .error {
@@ -59,10 +65,82 @@
       }
       .success { background: rgba(16,185,129,0.15); color: #047857; }
       .error { background: rgba(239,68,68,0.15); color: #b91c1c; }
+      .progress-bar {
+        margin-top: 16px;
+        width: 100%;
+        height: 6px;
+        background: #e2e8f0;
+        border-radius: 3px;
+        overflow: hidden;
+        display: none;
+      }
+      .progress-bar.active {
+        display: block;
+      }
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #0ea5e9, #0284c7);
+        width: 0%;
+        transition: width 0.3s ease;
+        border-radius: 3px;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+      }
+      .progress-steps {
+        margin-top: 12px;
+        font-size: 13px;
+        color: #64748b;
+        display: none;
+      }
+      .progress-steps.active {
+        display: block;
+      }
+      .progress-step {
+        margin: 4px 0;
+        padding-left: 20px;
+        position: relative;
+      }
+      .progress-step::before {
+        content: "○";
+        position: absolute;
+        left: 0;
+        color: #cbd5e1;
+      }
+      .progress-step.active::before {
+        content: "⟳";
+        color: #0ea5e9;
+        animation: spin 1s linear infinite;
+      }
+      .progress-step.completed::before {
+        content: "✓";
+        color: #10b981;
+      }
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      .nav-link {
+        display: inline-block;
+        margin-bottom: 16px;
+        padding: 8px 16px;
+        background: #0ea5e9;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: background 0.2s;
+      }
+      .nav-link:hover {
+        background: #0284c7;
+      }
     </style>
   </head>
   <body>
     <main>
+      <a href="simple_employee_map.html" class="nav-link">← Вернуться на карту</a>
       <h1>Отметить себя на карте</h1>
       <p>Просто заполните форму — данные автоматически попадут в Google Таблицу и появятся на общей карте.</p>
       <form id="employee-form">
@@ -73,35 +151,272 @@
         <input id="role" name="role" placeholder="Например, Продуктовый дизайнер" />
 
         <label for="city">Город</label>
-        <input id="city" name="city" placeholder="Например, Москва" required />
+        <input id="city" name="city" list="cities-list" placeholder="Начните вводить название города..." required autocomplete="off" />
+        <datalist id="cities-list">
+          <!-- Россия -->
+          <option value="Москва">Москва</option>
+          <option value="Санкт-Петербург">Санкт-Петербург</option>
+          <option value="Новосибирск">Новосибирск</option>
+          <option value="Екатеринбург">Екатеринбург</option>
+          <option value="Казань">Казань</option>
+          <option value="Нижний Новгород">Нижний Новгород</option>
+          <option value="Челябинск">Челябинск</option>
+          <option value="Самара">Самара</option>
+          <option value="Омск">Омск</option>
+          <option value="Ростов-на-Дону">Ростов-на-Дону</option>
+          <option value="Уфа">Уфа</option>
+          <option value="Красноярск">Красноярск</option>
+          <option value="Воронеж">Воронеж</option>
+          <option value="Пермь">Пермь</option>
+          <option value="Волгоград">Волгоград</option>
+          <option value="Краснодар">Краснодар</option>
+          <option value="Саратов">Саратов</option>
+          <option value="Тюмень">Тюмень</option>
+          <option value="Тольятти">Тольятти</option>
+          <option value="Ижевск">Ижевск</option>
+          <option value="Барнаул">Барнаул</option>
+          <option value="Ульяновск">Ульяновск</option>
+          <option value="Иркутск">Иркутск</option>
+          <option value="Хабаровск">Хабаровск</option>
+          <option value="Ярославль">Ярославль</option>
+          <option value="Владивосток">Владивосток</option>
+          <option value="Махачкала">Махачкала</option>
+          <option value="Томск">Томск</option>
+          <option value="Оренбург">Оренбург</option>
+          <option value="Кемерово">Кемерово</option>
+          <option value="Новокузнецк">Новокузнецк</option>
+          <option value="Рязань">Рязань</option>
+          <option value="Астрахань">Астрахань</option>
+          <option value="Набережные Челны">Набережные Челны</option>
+          <option value="Пенза">Пенза</option>
+          <option value="Киров">Киров</option>
+          <option value="Липецк">Липецк</option>
+          <option value="Чебоксары">Чебоксары</option>
+          <option value="Калининград">Калининград</option>
+          <option value="Тула">Тула</option>
+          <option value="Курск">Курск</option>
+          <option value="Сочи">Сочи</option>
+          <option value="Ставрополь">Ставрополь</option>
+          <option value="Улан-Удэ">Улан-Удэ</option>
+          <option value="Белгород">Белгород</option>
+          <option value="Архангельск">Архангельск</option>
+          <option value="Владимир">Владимир</option>
+          <option value="Нижний Тагил">Нижний Тагил</option>
+          <option value="Чита">Чита</option>
+          <option value="Смоленск">Смоленск</option>
+          <option value="Саранск">Саранск</option>
+          <option value="Калуга">Калуга</option>
+          <option value="Сургут">Сургут</option>
+          <option value="Череповец">Череповец</option>
+          <option value="Волжский">Волжский</option>
+          <option value="Владикавказ">Владикавказ</option>
+          <option value="Мурманск">Мурманск</option>
+          <option value="Тверь">Тверь</option>
+          <option value="Нальчик">Нальчик</option>
+          <option value="Якутск">Якутск</option>
+          <option value="Орёл">Орёл</option>
+          <option value="Брянск">Брянск</option>
+          <option value="Курган">Курган</option>
+          <option value="Иваново">Иваново</option>
+          <option value="Магнитогорск">Магнитогорск</option>
+          <option value="Тамбов">Тамбов</option>
+          <option value="Старый Оскол">Старый Оскол</option>
+          <option value="Белгород">Белгород</option>
+          <option value="Комсомольск-на-Амуре">Комсомольск-на-Амуре</option>
+          <option value="Петрозаводск">Петрозаводск</option>
+          <option value="Таганрог">Таганрог</option>
+          <option value="Нижневартовск">Нижневартовск</option>
+          <option value="Йошкар-Ола">Йошкар-Ола</option>
+          <option value="Новороссийск">Новороссийск</option>
+          <option value="Кострома">Кострома</option>
+          <option value="Химки">Химки</option>
+          <option value="Сыктывкар">Сыктывкар</option>
+          <option value="Нальчик">Нальчик</option>
+          <!-- СНГ -->
+          <option value="Минск">Минск (Беларусь)</option>
+          <option value="Гомель">Гомель (Беларусь)</option>
+          <option value="Могилёв">Могилёв (Беларусь)</option>
+          <option value="Витебск">Витебск (Беларусь)</option>
+          <option value="Гродно">Гродно (Беларусь)</option>
+          <option value="Брест">Брест (Беларусь)</option>
+          <option value="Алматы">Алматы (Казахстан)</option>
+          <option value="Нур-Султан">Нур-Султан (Казахстан)</option>
+          <option value="Шымкент">Шымкент (Казахстан)</option>
+          <option value="Актобе">Актобе (Казахстан)</option>
+          <option value="Караганда">Караганда (Казахстан)</option>
+          <option value="Ташкент">Ташкент (Узбекистан)</option>
+          <option value="Самарканд">Самарканд (Узбекистан)</option>
+          <option value="Наманган">Наманган (Узбекистан)</option>
+          <option value="Андижан">Андижан (Узбекистан)</option>
+          <option value="Нукус">Нукус (Узбекистан)</option>
+          <option value="Бишкек">Бишкек (Кыргызстан)</option>
+          <option value="Ош">Ош (Кыргызстан)</option>
+          <option value="Душанбе">Душанбе (Таджикистан)</option>
+          <option value="Худжанд">Худжанд (Таджикистан)</option>
+          <option value="Кишинёв">Кишинёв (Молдова)</option>
+          <option value="Тирасполь">Тирасполь (Молдова)</option>
+          <option value="Ереван">Ереван (Армения)</option>
+          <option value="Гюмри">Гюмри (Армения)</option>
+          <option value="Баку">Баку (Азербайджан)</option>
+          <option value="Гянджа">Гянджа (Азербайджан)</option>
+          <option value="Киев">Киев (Украина)</option>
+          <option value="Харьков">Харьков (Украина)</option>
+          <option value="Одесса">Одесса (Украина)</option>
+          <option value="Днепр">Днепр (Украина)</option>
+          <option value="Донецк">Донецк (Украина)</option>
+          <option value="Запорожье">Запорожье (Украина)</option>
+          <option value="Львов">Львов (Украина)</option>
+          <option value="Кривой Рог">Кривой Рог (Украина)</option>
+          <option value="Николаев">Николаев (Украина)</option>
+          <option value="Мариуполь">Мариуполь (Украина)</option>
+          <option value="Луганск">Луганск (Украина)</option>
+          <option value="Винница">Винница (Украина)</option>
+          <option value="Севастополь">Севастополь (Украина)</option>
+          <option value="Симферополь">Симферополь (Украина)</option>
+          <option value="Херсон">Херсон (Украина)</option>
+          <option value="Полтава">Полтава (Украина)</option>
+          <option value="Чернигов">Чернигов (Украина)</option>
+          <option value="Черкассы">Черкассы (Украина)</option>
+          <option value="Сумы">Сумы (Украина)</option>
+          <option value="Житомир">Житомир (Украина)</option>
+          <option value="Хмельницкий">Хмельницкий (Украина)</option>
+          <option value="Черновцы">Черновцы (Украина)</option>
+          <option value="Ровно">Ровно (Украина)</option>
+          <option value="Кропивницкий">Кропивницкий (Украина)</option>
+          <option value="Ивано-Франковск">Ивано-Франковск (Украина)</option>
+          <option value="Тернополь">Тернополь (Украина)</option>
+          <option value="Луцк">Луцк (Украина)</option>
+          <option value="Ужгород">Ужгород (Украина)</option>
+        </datalist>
 
         <label for="country">Страна</label>
-        <input id="country" name="country" placeholder="Например, Россия" required />
+        <input id="country" name="country" list="countries-list" placeholder="Начните вводить название страны..." required autocomplete="off" />
+        <datalist id="countries-list">
+          <option value="Россия">Россия</option>
+          <option value="Беларусь">Беларусь</option>
+          <option value="Казахстан">Казахстан</option>
+          <option value="Узбекистан">Узбекистан</option>
+          <option value="Кыргызстан">Кыргызстан</option>
+          <option value="Таджикистан">Таджикистан</option>
+          <option value="Туркменистан">Туркменистан</option>
+          <option value="Молдова">Молдова</option>
+          <option value="Армения">Армения</option>
+          <option value="Азербайджан">Азербайджан</option>
+          <option value="Украина">Украина</option>
+          <option value="Грузия">Грузия</option>
+        </datalist>
 
-        <button type="submit">Отправить</button>
+        <label for="photo-url">Ссылка на фото (опционально)</label>
+        <input type="url" id="photo-url" name="photo-url" placeholder="https://example.com/photo.jpg" />
+        <div class="hint">Вставьте прямую ссылку на изображение. Например: https://eu-s3.platformcraft.com/...</div>
+        <div id="photo-preview" style="margin-top: 10px;"></div>
+
+        <button type="submit" id="submit-btn">Отправить</button>
+        <div class="progress-bar" id="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="progress-steps" id="progress-steps">
+          <div class="progress-step" id="step-geo">Определение координат</div>
+          <div class="progress-step" id="step-send">Отправка данных</div>
+        </div>
         <div id="status"></div>
       </form>
     </main>
     <script>
-      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbynL-HEP43sPowIcIuE2_-bdqC9xfIx6gHg1lASYu3jeAgpVRP2xd2AIQp71FyGimI_/exec"; // Web App Apps Script
+      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz4BcoZPq8_5gmS37Hjpy-lvjax_F08IEMJEjMRTe7jn02Ab_PS3CGEaCBkeC2grw5Q/exec"; // Web App Apps Script
 
       const form = document.getElementById("employee-form");
       const status = document.getElementById("status");
+      const photoUrlInput = document.getElementById("photo-url");
+      const photoPreview = document.getElementById("photo-preview");
+      const submitBtn = document.getElementById("submit-btn");
+      const progressBar = document.getElementById("progress-bar");
+      const progressFill = document.getElementById("progress-fill");
+      const progressSteps = document.getElementById("progress-steps");
+      const stepGeo = document.getElementById("step-geo");
+      const stepSend = document.getElementById("step-send");
+      
+      function setProgress(percent) {
+        progressFill.style.width = percent + "%";
+      }
+      
+      function resetProgress() {
+        progressBar.classList.remove("active");
+        progressSteps.classList.remove("active");
+        setProgress(0);
+        [stepGeo, stepSend].forEach(step => {
+          if (step) {
+            step.classList.remove("active", "completed");
+          }
+        });
+      }
+      
+      function setStepActive(stepElement) {
+        [stepGeo, stepSend].forEach(step => {
+          if (step) {
+            step.classList.remove("active");
+          }
+        });
+        if (stepElement) {
+          stepElement.classList.add("active");
+        }
+      }
+      
+      function setStepCompleted(stepElement) {
+        stepElement.classList.remove("active");
+        stepElement.classList.add("completed");
+      }
+
+      // Превью фото из URL
+      photoUrlInput.addEventListener("input", (e) => {
+        const url = e.target.value.trim();
+        if (url) {
+          // Проверяем, что это валидный URL
+          try {
+            new URL(url);
+            photoPreview.innerHTML = `
+              <img src="${url}" 
+                   style="max-width: 200px; max-height: 200px; border-radius: 8px; margin-top: 8px; object-fit: cover;" 
+                   alt="Превью фото" 
+                   onerror="this.parentElement.innerHTML='<span style=\\'color: #dc2626; font-size: 12px;\\'>Не удалось загрузить изображение. Проверьте ссылку.</span>'" />
+            `;
+          } catch (err) {
+            photoPreview.innerHTML = '<span style="color: #dc2626; font-size: 12px;">Некорректный URL</span>';
+          }
+        } else {
+          photoPreview.innerHTML = "";
+        }
+      });
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
+        
+        // Блокируем кнопку сразу
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Отправка...";
+        
+        // Показываем прогресс-бар
+        progressBar.classList.add("active");
+        progressSteps.classList.add("active");
+        setProgress(10);
+        setStepActive(stepGeo);
+        
         status.innerHTML = "";
+        status.textContent = "";
 
         const formData = new FormData(form);
-        status.textContent = "Определяем координаты…";
-
         const city = formData.get("city");
         const country = formData.get("country");
 
         let latitude = "";
         let longitude = "";
+        let timeoutId = null;
 
         try {
+          // Добавляем таймаут для geocoding запроса
+          const controller = new AbortController();
+          timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд таймаут
+          
           const geoResponse = await fetch(
             `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(`${city}, ${country}`)}`,
             {
@@ -109,44 +424,156 @@
                 "Accept": "application/json",
                 "User-Agent": "employee-map-demo/1.0",
               },
+              signal: controller.signal
             }
           );
+          
+          clearTimeout(timeoutId);
+          
           if (geoResponse.ok) {
             const results = await geoResponse.json();
             if (Array.isArray(results) && results.length > 0) {
               latitude = results[0].lat;
               longitude = results[0].lon;
+              console.log("Координаты найдены:", latitude, longitude);
+            } else {
+              console.warn("Координаты не найдены для:", city, country);
             }
+          } else {
+            console.warn("Geocoding API вернул ошибку:", geoResponse.status);
           }
+          setStepCompleted(stepGeo);
+          setProgress(40);
         } catch (geoError) {
-          console.warn("Geocoding failed", geoError);
+          clearTimeout(timeoutId);
+          if (geoError.name === 'AbortError') {
+            console.warn("Geocoding timeout - запрос занял слишком много времени");
+            status.textContent = "Предупреждение: не удалось определить координаты автоматически. Продолжаем отправку...";
+          } else {
+            console.warn("Geocoding failed", geoError);
+          }
+          setStepCompleted(stepGeo);
+          setProgress(40);
         }
 
         formData.set("latitude", latitude);
         formData.set("longitude", longitude);
 
-        try {
-          // Используем no-cors: браузер отправит POST без проверки CORS.
-          // Ответ будет opaque (недоступен для чтения), но запись в таблицу выполнится.
-          await fetch(SCRIPT_URL, {
-            method: "POST",
-            mode: "no-cors",
-            body: formData,
-          });
+        // Получаем URL фото, если указан
+        const photoUrl = photoUrlInput.value.trim();
+        setProgress(70);
+        
+        await submitForm(formData, photoUrl);
+      });
 
+      async function submitForm(formData, photoUrl) {
+        setStepActive(stepSend);
+        setProgress(85);
+        
+        try {
+          // Создаём URL-encoded строку для более надежной передачи
+          const params = new URLSearchParams();
+          params.append("name", formData.get("name") || "");
+          params.append("role", formData.get("role") || "");
+          params.append("city", formData.get("city") || "");
+          params.append("country", formData.get("country") || "");
+          params.append("latitude", formData.get("latitude") || "");
+          params.append("longitude", formData.get("longitude") || "");
+          
+          // Добавляем URL фото, если указан
+          if (photoUrl && photoUrl.trim()) {
+            params.append("photo", photoUrl.trim());
+            console.log("Добавляем URL фото в запрос:", photoUrl);
+          } else {
+            console.log("URL фото не указан");
+          }
+          
+          const bodyString = params.toString();
+          console.log("Отправляем запрос, общий размер данных:", bodyString.length, "символов");
+          
+          // Добавляем таймаут для отправки данных
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 секунд таймаут
+          
+          try {
+            // При mode: "no-cors" мы не можем получить ответ, но это нормально
+            // Отправляем запрос и считаем его успешным, если нет ошибки сети
+            console.log("Отправка запроса на:", SCRIPT_URL);
+            console.log("Данные:", {
+              name: params.get("name"),
+              city: params.get("city"),
+              country: params.get("country"),
+              hasPhoto: params.get("photo") ? "да" : "нет"
+            });
+            
+            const fetchPromise = fetch(SCRIPT_URL, {
+              method: "POST",
+              mode: "no-cors",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              body: bodyString,
+              signal: controller.signal
+            });
+            
+            // Ждем завершения запроса (но не ответа, т.к. no-cors)
+            // При no-cors мы не можем проверить статус ответа, но если нет ошибки сети - считаем успешным
+            await Promise.race([
+              fetchPromise,
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error("Таймаут")), 25000) // 25 сек для более быстрой обратной связи
+              )
+            ]);
+            
+            clearTimeout(timeoutId);
+            console.log("Запрос отправлен успешно (no-cors режим - ответ недоступен)");
+          } catch (fetchError) {
+            clearTimeout(timeoutId);
+            if (fetchError.name === 'AbortError' || fetchError.message === 'Таймаут') {
+              throw new Error("Таймаут при отправке данных. Проверьте интернет-соединение и URL скрипта, затем попробуйте еще раз.");
+            }
+            // Другие ошибки сети
+            console.error("Ошибка fetch:", fetchError);
+            throw new Error("Ошибка сети при отправке: " + (fetchError.message || "Неизвестная ошибка"));
+          }
+
+          // Успешная отправка
+          setProgress(100);
+          setStepCompleted(stepSend);
+          
+          // Небольшая задержка для визуального эффекта
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
           const message = document.createElement("div");
           message.className = "success";
           message.textContent = "Готово! Данные отправлены в Google Таблицу.";
           status.appendChild(message);
           form.reset();
+          photoPreview.innerHTML = "";
+          
+          // Небольшая задержка для UX и возврат на карту
+          setTimeout(() => {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Отправить";
+            resetProgress();
+            // Возвращаем пользователя на карту
+            window.location.href = "simple_employee_map.html";
+          }, 1200);
         } catch (error) {
-          console.error(error);
+          console.error("Ошибка отправки:", error);
+          setProgress(100);
+          
           const message = document.createElement("div");
           message.className = "error";
-          message.textContent = "Не удалось отправить. Проверьте ссылку на Web App или включите CORS.";
+          message.textContent = error.message || "Не удалось отправить. Проверьте ссылку на Web App и попробуйте еще раз.";
           status.appendChild(message);
+          
+          // Разблокируем кнопку при ошибке
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Отправить";
+          resetProgress();
         }
-      });
+      }
     </script>
   </body>
 </html>
