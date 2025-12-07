@@ -323,7 +323,11 @@
       </form>
     </main>
     <script>
-      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzLoaLUHNwhR0oo_yYN3m9hZIfwzcOLh3rImURswVyXPvzJy5o0lTeIGfdMMozDAYj/exec"; // Web App Apps Script
+      // Supabase: вставь свои URL/ключ, если поменяются
+      const SUPABASE_URL = "https://oyhmtnchrkbjwrescwhb.supabase.co";
+      const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95aG10bmNocmtiandyZXNjd2hiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxMzc1NzIsImV4cCI6MjA4MDcxMzU3Mn0.INzUm32z_e7HWKpdABPZUUQ9JSzu-QM9o05spfXkJ0k";
+      const SUPABASE_TABLE = "people";
+      const SUPABASE_INSERT_URL = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`;
 
       const form = document.getElementById("employee-form");
       const status = document.getElementById("status");
@@ -471,70 +475,39 @@
         setProgress(85);
         
         try {
-          // Создаём URL-encoded строку для более надежной передачи
-          const params = new URLSearchParams();
-          params.append("name", formData.get("name") || "");
-          params.append("role", formData.get("role") || "");
-          params.append("city", formData.get("city") || "");
-          params.append("country", formData.get("country") || "");
-          params.append("latitude", formData.get("latitude") || "");
-          params.append("longitude", formData.get("longitude") || "");
+          // Готовим payload для Supabase
+          const payload = {
+            name: formData.get("name") || "",
+            role: formData.get("role") || "",
+            city: formData.get("city") || "",
+            country: formData.get("country") || "",
+            lat: formData.get("latitude") ? parseFloat(formData.get("latitude")) : null,
+            lng: formData.get("longitude") ? parseFloat(formData.get("longitude")) : null,
+            photo: photoUrl && photoUrl.trim() ? photoUrl.trim() : null
+          };
           
-          // Добавляем URL фото, если указан
-          if (photoUrl && photoUrl.trim()) {
-            params.append("photo", photoUrl.trim());
-            console.log("Добавляем URL фото в запрос:", photoUrl);
-          } else {
-            console.log("URL фото не указан");
-          }
+          console.log("Отправляем в Supabase:", payload);
           
-          const bodyString = params.toString();
-          console.log("Отправляем запрос, общий размер данных:", bodyString.length, "символов");
-          
-          // Добавляем таймаут для отправки данных
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 секунд таймаут
+          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 сек
           
-          try {
-            // При mode: "no-cors" мы не можем получить ответ, но это нормально
-            // Отправляем запрос и считаем его успешным, если нет ошибки сети
-            console.log("Отправка запроса на:", SCRIPT_URL);
-            console.log("Данные:", {
-              name: params.get("name"),
-              city: params.get("city"),
-              country: params.get("country"),
-              hasPhoto: params.get("photo") ? "да" : "нет"
-            });
-            
-            const fetchPromise = fetch(SCRIPT_URL, {
-              method: "POST",
-              mode: "no-cors",
-              headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-              },
-              body: bodyString,
-              signal: controller.signal
-            });
-            
-            // Ждем завершения запроса (но не ответа, т.к. no-cors)
-            // При no-cors мы не можем проверить статус ответа, но если нет ошибки сети - считаем успешным
-            await Promise.race([
-              fetchPromise,
-              new Promise((_, reject) => 
-                setTimeout(() => reject(new Error("Таймаут")), 25000) // 25 сек для более быстрой обратной связи
-              )
-            ]);
-            
-            clearTimeout(timeoutId);
-            console.log("Запрос отправлен успешно (no-cors режим - ответ недоступен)");
-          } catch (fetchError) {
-            clearTimeout(timeoutId);
-            if (fetchError.name === 'AbortError' || fetchError.message === 'Таймаут') {
-              throw new Error("Таймаут при отправке данных. Проверьте интернет-соединение и URL скрипта, затем попробуйте еще раз.");
-            }
-            // Другие ошибки сети
-            console.error("Ошибка fetch:", fetchError);
-            throw new Error("Ошибка сети при отправке: " + (fetchError.message || "Неизвестная ошибка"));
+          const resp = await fetch(SUPABASE_INSERT_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": SUPABASE_ANON_KEY,
+              "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+              "Prefer": "return=representation"
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!resp.ok) {
+            const errText = await resp.text().catch(() => "");
+            throw new Error(`Supabase error ${resp.status}: ${resp.statusText} ${errText}`);
           }
 
           // Успешная отправка
