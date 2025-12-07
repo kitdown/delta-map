@@ -327,7 +327,7 @@
       async function fetchViaProxy(url) {
         try {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 секунд таймаут
+          const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 секунд таймаут (allorigins может отвечать дольше)
           
           const response = await fetch(PROXY_BASE + encodeURIComponent(url), { 
             cache: "no-store",
