@@ -310,7 +310,8 @@
       // 4. gid=0 означает первый лист, если лист называется иначе - найдите правильный gid в URL публикации
       
       // Всегда используем публичный CORS-прокси (подходит для GitHub Pages и локально без localhost)
-      const PROXY_BASE = 'https://api.allorigins.win/get?url=';
+      // Заменили allorigins (ловит CORS) на cors.isomorphic-git.org
+      const PROXY_BASE = 'https://cors.isomorphic-git.org/';
       const isLocalFile = false; // логика локального файла больше не используется
 
       const BASE_PUBHTML_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTS5jCWR5xK5gE8LVPGdrJHJGTNvovm5A4ox7N0qWaepCR_hoa2FM54RFnyOH3ytNpZtAWRW9VL-CjR/pubhtml?gid=0&single=true";
@@ -319,17 +320,17 @@
       const PUBHTML_URL = BASE_PUBHTML_URL;
       const CSV_URL = BASE_CSV_URL;
       
-      console.log("Режим работы: через публичный прокси (allorigins)");
+      console.log("Режим работы: через публичный прокси (cors.isomorphic-git.org)");
       console.log("CSV URL:", CSV_URL);
       console.log("PUBHTML URL:", PUBHTML_URL);
       
-      // Загрузка с публичным CORS-прокси (allorigins). Возвращает объект, похожий на Response.
+      // Загрузка с публичным CORS-прокси
       async function fetchViaProxy(url) {
         try {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 секунд таймаут (allorigins может отвечать дольше)
+          const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 секунд таймаут
           
-          const response = await fetch(PROXY_BASE + encodeURIComponent(url), { 
+          const response = await fetch(PROXY_BASE + url, { 
             cache: "no-store",
             mode: "cors",
             credentials: "omit",
@@ -342,25 +343,13 @@
             throw new Error(`HTTP ${response.status}`);
           }
           
-          const ct = response.headers.get("content-type") || "";
-          if (ct.includes("application/json")) {
-            const json = await response.json();
-            const text = json && json.contents ? json.contents : JSON.stringify(json);
-            return {
-              ok: true,
-              status: 200,
-              statusText: "OK",
-              text: async () => text
-            };
-          } else {
-            const text = await response.text();
-            return {
-              ok: true,
-              status: response.status,
-              statusText: response.statusText,
-              text: async () => text
-            };
-          }
+          const text = await response.text();
+          return {
+            ok: true,
+            status: response.status,
+            statusText: response.statusText,
+            text: async () => text
+          };
         } catch (error) {
           console.error("fetchViaProxy error:", error);
           throw error;
