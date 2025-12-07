@@ -309,52 +309,12 @@
       // 3. Убедиться, что в таблице есть колонки: Name, Role, City, Country, Latitude, Longitude, Timestamp, Photo
       // 4. gid=0 означает первый лист, если лист называется иначе - найдите правильный gid в URL публикации
       
-      // Всегда используем публичный CORS-прокси (подходит для GitHub Pages и локально без localhost)
-      // Заменили allorigins (ловит CORS) на cors.isomorphic-git.org
-      const PROXY_BASE = 'https://cors.isomorphic-git.org/';
-      const isLocalFile = false; // логика локального файла больше не используется
-
-      const BASE_PUBHTML_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTS5jCWR5xK5gE8LVPGdrJHJGTNvovm5A4ox7N0qWaepCR_hoa2FM54RFnyOH3ytNpZtAWRW9VL-CjR/pubhtml?gid=0&single=true";
-      const BASE_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTS5jCWR5xK5gE8LVPGdrJHJGTNvovm5A4ox7N0qWaepCR_hoa2FM54RFnyOH3ytNpZtAWRW9VL-CjR/pub?gid=0&single=true&output=csv";
-      
-      const PUBHTML_URL = BASE_PUBHTML_URL;
-      const CSV_URL = BASE_CSV_URL;
-      
-      console.log("Режим работы: через публичный прокси (cors.isomorphic-git.org)");
-      console.log("CSV URL:", CSV_URL);
-      console.log("PUBHTML URL:", PUBHTML_URL);
-      
-      // Загрузка с публичным CORS-прокси
-      async function fetchViaProxy(url) {
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 секунд таймаут
-          
-          const response = await fetch(PROXY_BASE + url, { 
-            cache: "no-store",
-            mode: "cors",
-            credentials: "omit",
-            signal: controller.signal
-          });
-          
-          clearTimeout(timeoutId);
-          
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          
-          const text = await response.text();
-          return {
-            ok: true,
-            status: response.status,
-            statusText: response.statusText,
-            text: async () => text
-          };
-        } catch (error) {
-          console.error("fetchViaProxy error:", error);
-          throw error;
-        }
-      }
+      // Источник данных: Supabase REST (read-only)
+      const SUPABASE_URL = "https://oyhmtnchrkbjwrescwhb.supabase.co";
+      const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95aG10bmNocmtiandyZXNjd2hiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxMzc1NzIsImV4cCI6MjA4MDcxMzU3Mn0.INzUm32z_e7HWKpdABPZUUQ9JSzu-QM9o05spfXkJ0k";
+      const SUPABASE_TABLE = "people";
+      const DATA_URL = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?select=name,role,city,country,lat,lng,photo,updated_at`;
+      console.log("Режим работы: прямой fetch JSON из Supabase");
 
       const map = L.map("map", { worldCopyJump: true }).setView([20, 0], 2);
       const sidebar = document.getElementById("sidebar");
@@ -643,36 +603,34 @@
           let errorMessage = "";
           
           try {
-            showProgress(20, "Загрузка CSV данных...", "");
-            console.log("Загружаем CSV из:", CSV_URL);
-            const response = await fetchViaProxy(CSV_URL);
-            
-            console.log("Response status:", response.status, response.statusText);
-            console.log("Response headers:", [...response.headers.entries()]);
-            
+            showProgress(30, "Загрузка данных из Supabase...", "");
+            console.log("Загружаем JSON из:", DATA_URL);
+            const response = await fetch(DATA_URL, {
+              cache: "no-store",
+              headers: {
+                apikey: SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+              }
+            });
             if (!response.ok) {
               throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-            
-            showProgress(40, "Обработка CSV данных...", "");
-            const csv = await response.text();
-            console.log("CSV получен, длина:", csv.length);
-            console.log("Первые 500 символов CSV:", csv.substring(0, 500));
-            
-            if (!csv || csv.trim().length === 0) {
-              throw new Error("CSV файл пустой");
+            const json = await response.json();
+            if (!Array.isArray(json)) {
+              throw new Error("Некорректный формат JSON");
             }
             
             showProgress(50, "Парсинг данных...", "");
-            const parsedRows = parseCsv(csv);
-            console.log("Всего распарсено строк (до фильтрации):", parsedRows.length);
-            
-            if (parsedRows.length > 0) {
-              console.log("Пример первой строки:", parsedRows[0]);
-            }
-            
-            rows = parsedRows.filter(cells => {
-              // Фильтруем только строки с валидными координатами
+            rows = json.map(r => ([
+              r.name || "",
+              r.role || "",
+              r.city || "",
+              r.country || "",
+              r.lat,
+              r.lng,
+              r.updated_at || "",
+              r.photo || ""
+            ])).filter(cells => {
               if (cells.length < 6) {
                 console.warn("Строка с недостаточным количеством колонок:", cells);
                 return false;
@@ -686,56 +644,13 @@
               return isValid;
             });
             console.log("После фильтрации осталось строк:", rows.length);
-          } catch (csvError) {
-            console.error("CSV load failed:", csvError);
-            errorMessage = `CSV: ${csvError.message}`;
-            
-            // Если CSV не сработал — пробуем pubhtml
-            try {
-              showProgress(20, "Загрузка HTML данных...", "");
-              console.log("Пробуем загрузить PUBHTML из:", PUBHTML_URL);
-              const htmlResp = await fetchViaProxy(PUBHTML_URL);
-              
-              console.log("PUBHTML Response status:", htmlResp.status, htmlResp.statusText);
-              
-              if (htmlResp.ok) {
-                showProgress(40, "Обработка HTML данных...", "");
-                const html = await htmlResp.text();
-                console.log("HTML получен, длина:", html.length);
-                console.log("Первые 1000 символов HTML:", html.substring(0, 1000));
-                
-                showProgress(50, "Парсинг HTML...", "");
-                rows = parsePubHtml(html);
-                console.log("PUBHTML распарсено строк:", rows.length);
-                
-                if (rows.length === 0 && html.length > 0) {
-                  // Попробуем найти таблицу другим способом
-                  const parser = new DOMParser();
-                  const doc = parser.parseFromString(html, "text/html");
-                  const allTables = doc.querySelectorAll("table");
-                  console.log("Найдено таблиц в HTML:", allTables.length);
-                  
-                  if (allTables.length > 0) {
-                    console.log("Первая таблица:", allTables[0].outerHTML.substring(0, 500));
-                  }
-                }
-              } else {
-                throw new Error(`HTTP ${htmlResp.status}: ${htmlResp.statusText}`);
-              }
-            } catch (htmlError) {
-              console.error("PUBHTML также не сработал:", htmlError);
-              errorMessage += ` | PUBHTML: ${htmlError.message}`;
-              
-              // Если файл открыт локально, добавляем подсказку о прокси
-              if (isLocalFile && (htmlError.message.includes('CORS') || htmlError.message.includes('Failed to fetch'))) {
-                errorMessage += ". Запустите сервер: uvicorn src.map_service:app --reload";
-              }
-            }
+          } catch (jsonError) {
+            console.error("JSON load failed:", jsonError);
+            errorMessage = `JSON: ${jsonError.message}`;
           }
 
-          // Проверяем на CORS ошибки
           if (rows.length === 0 && errorMessage === "") {
-            errorMessage = "Не удалось загрузить данные. Проверьте публикацию таблицы или доступность прокси.";
+            errorMessage = "Не удалось загрузить данные. Проверьте доступ к Supabase (URL/anon key/политики).";
           }
 
           document.getElementById("counter").textContent = rows.length;
