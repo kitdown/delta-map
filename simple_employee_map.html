@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Глобальная карта сотрудников</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <style>
       :root { color-scheme: light dark; }
       html, body {
@@ -20,7 +23,101 @@
       }
       header h1 { margin: 0; font-size: 22px; }
       header p { margin: 6px 0 0; font-size: 14px; }
-      #map { height: calc(100vh - 70px); width: 100%; }
+      .layout {
+        display: flex;
+        height: calc(100vh - 70px);
+        width: 100%;
+      }
+      #map {
+        flex: 1;
+        height: 100%;
+        width: 100%;
+      }
+      .sidebar {
+        width: 320px;
+        min-width: 280px;
+        max-width: 360px;
+        background: #ffffff;
+        border-left: 1px solid #e2e8f0;
+        box-shadow: -10px 0 25px rgba(15, 23, 42, 0.08);
+        overflow-y: auto;
+        padding: 14px 12px 16px;
+        font-size: 14px;
+        color: #0f172a;
+      }
+      .sidebar h3 {
+        margin: 6px 0 12px;
+        font-size: 16px;
+      }
+      .sidebar.collapsed {
+        width: 0;
+        min-width: 0;
+        max-width: 0;
+        padding: 0;
+        border: none;
+        box-shadow: none;
+        overflow: hidden;
+      }
+      .city-block {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 10px 10px 6px;
+        margin-bottom: 10px;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+      .city-block:hover {
+        border-color: #0ea5e9;
+        box-shadow: 0 6px 16px rgba(14, 165, 233, 0.16);
+      }
+      .city-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .city-title {
+        font-weight: 700;
+      }
+      .city-sub {
+        color: #64748b;
+        font-size: 12px;
+      }
+      .pill {
+        background: #0ea5e9;
+        color: #fff;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .people-list {
+        margin: 8px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .people-list li {
+        margin: 2px 0;
+        color: #0f172a;
+      }
+      .people-list small {
+        color: #94a3b8;
+      }
+      .toggle-btn {
+        margin-left: 10px;
+        padding: 8px 12px;
+        background: #0284c7;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      .toggle-btn:hover { background: #0369a1; }
+      @media (max-width: 960px) {
+        .layout { flex-direction: column; }
+        .sidebar { width: 100%; max-width: none; border-left: none; border-top: 1px solid #e2e8f0; box-shadow: 0 -6px 16px rgba(15,23,42,0.08); }
+        #map { height: 60vh; }
+      }
       .legend {
         position: absolute;
         top: 90px;
@@ -35,42 +132,459 @@
       }
       .legend strong { display: block; font-size: 16px; }
       .legend small { display: block; color: #475569; margin-top: 4px; }
+      .custom-photo-marker {
+        background: transparent;
+        border: none;
+      }
+      /* Стили для кластеров маркеров */
+      .marker-cluster {
+        background-color: rgba(14, 165, 233, 0.6);
+        border-radius: 50%;
+        color: white;
+        font-weight: bold;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 3px solid #fff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+      .marker-cluster div {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+      }
+      .marker-cluster-small {
+        background-color: rgba(14, 165, 233, 0.6);
+        width: 40px;
+        height: 40px;
+      }
+      .marker-cluster-medium {
+        background-color: rgba(2, 132, 199, 0.7);
+        width: 50px;
+        height: 50px;
+      }
+      .marker-cluster-large {
+        background-color: rgba(1, 113, 171, 0.8);
+        width: 60px;
+        height: 60px;
+      }
+      .marker-cluster-large div {
+        font-size: 16px;
+      }
+      /* Прогресс-бар */
+      .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+      }
+      .loading-overlay.hidden {
+        display: none;
+      }
+      .progress-container {
+        width: 90%;
+        max-width: 400px;
+        background: #fff;
+        padding: 24px;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+      }
+      .progress-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #0f172a;
+        margin-bottom: 16px;
+        text-align: center;
+      }
+      .progress-bar-container {
+        width: 100%;
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 12px;
+      }
+      .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #0ea5e9, #0284c7);
+        width: 0%;
+        transition: width 0.3s ease;
+        border-radius: 4px;
+      }
+      .progress-text {
+        font-size: 14px;
+        color: #64748b;
+        text-align: center;
+      }
+      .progress-stats {
+        margin-top: 16px;
+        font-size: 12px;
+        color: #94a3b8;
+        text-align: center;
+      }
+      .nav-link {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 8px 16px;
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+        text-decoration: none;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: background 0.2s;
+      }
+      .nav-link:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+      .header-content {
+        flex: 1;
+      }
     </style>
   </head>
   <body>
     <header>
-      <h1>Глобальная карта сотрудников</h1>
-      <p>Данные подтягиваются напрямую из Google Таблицы</p>
+      <div class="header-content">
+        <h1>Глобальная карта сотрудников</h1>
+        <p>Данные подтягиваются напрямую из Google Таблицы</p>
+        <a href="simple_employee_form.html" class="nav-link">➕ Добавить себя на карту</a>
+      </div>
+      <button id="toggle-sidebar" class="toggle-btn" type="button">Скрыть список</button>
     </header>
+    <div class="layout">
     <div id="map"></div>
+      <aside class="sidebar" id="sidebar">
+        <h3>Локации</h3>
+        <div id="sidebar-content">Загрузка списка…</div>
+      </aside>
+    </div>
+    <div id="loading-overlay" class="loading-overlay">
+      <div class="progress-container">
+        <div class="progress-title">Загрузка карты сотрудников</div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" id="progress-bar-fill"></div>
+        </div>
+        <div class="progress-text" id="progress-text">Инициализация...</div>
+        <div class="progress-stats" id="progress-stats"></div>
+      </div>
+    </div>
     <div class="legend">
       <strong>Всего: <span id="counter">0</span></strong>
       <small id="updated">Загрузка…</small>
+      <div id="error-hint" style="display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #dc2626;">
+        <strong>Проблема с загрузкой данных?</strong><br/>
+        Убедитесь, что:<br/>
+        1. Таблица опубликована (File → Share → Publish to web → CSV)<br/>
+        2. Лист называется "map" (или измените gid=0 в URL)<br/>
+        3. В таблице есть колонки: Name, Role, City, Country, Latitude, Longitude, Timestamp, Photo<br/>
+        <span id="proxy-hint" style="display: none;"><br/>
+        <strong>Файл открыт локально:</strong><br/>
+        Запустите сервер: <code>uvicorn src.map_service:app --reload</code><br/>
+        Затем откройте: <code>http://localhost:8000/static/simple_employee_map.html</code>
+        </span><br/>
+        4. Откройте консоль браузера (F12) для деталей
+      </div>
     </div>
     <script>
       // Источники данных: pubhtml (основной) и CSV (резервный)
-      const PUBHTML_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTS5jCWR5xK5gE8LVPGdrJHJGTNvovm5A4ox7N0qWaepCR_hoa2FM54RFnyOH3ytNpZtAWRW9VL-CjR/pubhtml?gid=0&single=true";
-      const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTS5jCWR5xK5gE8LVPGdrJHJGTNvovm5A4ox7N0qWaepCR_hoa2FM54RFnyOH3ytNpZtAWRW9VL-CjR/pub?gid=0&single=true&output=csv";
+      // ВАЖНО: Для работы необходимо:
+      // 1. Опубликовать таблицу: File → Share → Publish to web → выбрать формат CSV и лист "map"
+      // 2. Скопировать ссылку публикации и заменить URL ниже
+      // 3. Убедиться, что в таблице есть колонки: Name, Role, City, Country, Latitude, Longitude, Timestamp, Photo
+      // 4. gid=0 означает первый лист, если лист называется иначе - найдите правильный gid в URL публикации
+      
+      // Всегда используем публичный CORS-прокси (подходит для GitHub Pages и локально без localhost)
+      const PROXY_BASE = 'https://api.allorigins.win/get?url=';
+      const isLocalFile = false; // логика локального файла больше не используется
+
+      const BASE_PUBHTML_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTS5jCWR5xK5gE8LVPGdrJHJGTNvovm5A4ox7N0qWaepCR_hoa2FM54RFnyOH3ytNpZtAWRW9VL-CjR/pubhtml?gid=0&single=true";
+      const BASE_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTS5jCWR5xK5gE8LVPGdrJHJGTNvovm5A4ox7N0qWaepCR_hoa2FM54RFnyOH3ytNpZtAWRW9VL-CjR/pub?gid=0&single=true&output=csv";
+      
+      const PUBHTML_URL = BASE_PUBHTML_URL;
+      const CSV_URL = BASE_CSV_URL;
+      
+      console.log("Режим работы: через публичный прокси (allorigins)");
+      console.log("CSV URL:", CSV_URL);
+      console.log("PUBHTML URL:", PUBHTML_URL);
+      
+      // Загрузка с публичным CORS-прокси (allorigins). Возвращает объект, похожий на Response.
+      async function fetchViaProxy(url) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 секунд таймаут
+          
+          const response = await fetch(PROXY_BASE + encodeURIComponent(url), { 
+            cache: "no-store",
+            mode: "cors",
+            credentials: "omit",
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          
+          const ct = response.headers.get("content-type") || "";
+          if (ct.includes("application/json")) {
+            const json = await response.json();
+            const text = json && json.contents ? json.contents : JSON.stringify(json);
+            return {
+              ok: true,
+              status: 200,
+              statusText: "OK",
+              text: async () => text
+            };
+          } else {
+            const text = await response.text();
+            return {
+              ok: true,
+              status: response.status,
+              statusText: response.statusText,
+              text: async () => text
+            };
+          }
+        } catch (error) {
+          console.error("fetchViaProxy error:", error);
+          throw error;
+        }
+      }
 
       const map = L.map("map", { worldCopyJump: true }).setView([20, 0], 2);
+      const sidebar = document.getElementById("sidebar");
+      const toggleSidebarBtn = document.getElementById("toggle-sidebar");
+      if (toggleSidebarBtn && sidebar) {
+        toggleSidebarBtn.addEventListener("click", () => {
+          const collapsed = sidebar.classList.toggle("collapsed");
+          toggleSidebarBtn.textContent = collapsed ? "Показать список" : "Скрыть список";
+        });
+      }
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 18,
         attribution: "&copy; OpenStreetMap contributors",
       }).addTo(map);
 
-      const markers = L.layerGroup().addTo(map);
+      // Используем MarkerClusterGroup для кластеризации маркеров
+      const markers = L.markerClusterGroup({
+        // Максимальный радиус кластера (в пикселях)
+        maxClusterRadius: 80,
+        // Минимальный зум для показа отдельных маркеров (при зуме 15+ показываются отдельные маркеры)
+        disableClusteringAtZoom: 14,
+        // Увеличиваем разлет “лучей” при раскрытии кластера и убираем линии
+        spiderfyDistanceMultiplier: 2.2,
+        spiderLegPolylineOptions: { weight: 0, opacity: 0 },
+        // Стили кластеров
+        iconCreateFunction: function(cluster) {
+          const count = cluster.getChildCount();
+          let size = 'small';
+          let iconSize = 40;
+          if (count > 100) {
+            size = 'large';
+            iconSize = 60;
+          } else if (count > 10) {
+            size = 'medium';
+            iconSize = 50;
+          }
+          
+          return L.divIcon({
+            html: '<div><span>' + count + '</span></div>',
+            className: 'marker-cluster marker-cluster-' + size,
+            iconSize: L.point(iconSize, iconSize),
+            iconAnchor: L.point(iconSize / 2, iconSize / 2)
+          });
+        },
+        // Анимация при раскрытии кластера (раскрывает маркеры по кругу)
+        spiderfyOnMaxZoom: true,
+        // Показывать все маркеры при клике на кластер
+        showCoverageOnHover: false,
+        // Удалять маркеры вне видимой области для производительности
+        removeOutsideVisibleBounds: true,
+        // Анимация при добавлении маркеров
+        animate: true,
+        // Максимальный зум для анимации раскрытия
+        zoomToBoundsOnClick: true
+      });
+      map.addLayer(markers);
+      
+      // Восстанавливаем иконки при раскрытии кластера
+      markers.on('clusterclick', function(a) {
+        // При клике на кластер восстанавливаем иконки всех дочерних маркеров
+        setTimeout(function() {
+          const childMarkers = a.layer.getAllChildMarkers();
+          childMarkers.forEach(function(marker) {
+            if (marker._originalIcon) {
+              marker.setIcon(marker._originalIcon);
+            }
+          });
+        }, 100); // Небольшая задержка для завершения анимации раскрытия
+      });
+      
+      // Восстанавливаем иконки при увеличении зума (когда кластеры раскрываются автоматически)
+      map.on('zoomend', function() {
+        setTimeout(function() {
+          markers.eachLayer(function(layer) {
+            // Проверяем, что это маркер (не кластер)
+            if (layer instanceof L.Marker && !(layer instanceof L.MarkerCluster)) {
+              if (layer._originalIcon) {
+                // Восстанавливаем оригинальную иконку
+                layer.setIcon(layer._originalIcon);
+              }
+            }
+          });
+        }, 200); // Задержка для завершения анимации
+      });
+      
+      // Также восстанавливаем иконки при изменении видимости маркеров
+      markers.on('animationend', function() {
+        markers.eachLayer(function(layer) {
+          if (layer instanceof L.Marker && !(layer instanceof L.MarkerCluster)) {
+            if (layer._originalIcon && (!layer._icon || !layer._icon.parentNode)) {
+              layer.setIcon(layer._originalIcon);
+            }
+          }
+        });
+      });
+
+      // Функции для управления прогресс-баром
+      function showProgress(percent, text, stats = "") {
+        const overlay = document.getElementById("loading-overlay");
+        const fill = document.getElementById("progress-bar-fill");
+        const textEl = document.getElementById("progress-text");
+        const statsEl = document.getElementById("progress-stats");
+        
+        if (overlay && fill && textEl) {
+          overlay.classList.remove("hidden");
+          fill.style.width = Math.min(percent, 100) + "%";
+          textEl.textContent = text;
+          if (statsEl) statsEl.textContent = stats;
+        }
+      }
+      
+      function hideProgress() {
+        const overlay = document.getElementById("loading-overlay");
+        if (overlay) {
+          overlay.classList.add("hidden");
+        }
+      }
+
+      // Рендер списка локаций в сайдбар
+      function renderSidebar(cityMap) {
+        const container = document.getElementById("sidebar-content");
+        if (!container) return;
+
+        const entries = Array.from(cityMap.values());
+        if (!entries.length) {
+          container.textContent = "Нет данных";
+          return;
+        }
+
+        entries.sort((a, b) => b.people.length - a.people.length);
+
+        const html = entries.map(entry => {
+          const people = entry.people
+            .slice(0, 8)
+            .map(p => `<li><strong>${p.name}</strong>${p.role ? `<br/><small>${p.role}</small>` : ""}</li>`)
+            .join("");
+          const extra = entry.people.length > 8 ? `<li><small>+${entry.people.length - 8} еще</small></li>` : "";
+          return `
+            <div class="city-block" data-city="${encodeURIComponent(entry.city || "")}" data-country="${encodeURIComponent(entry.country || "")}">
+              <div class="city-header">
+                <div>
+                  <div class="city-title">${entry.city || "Город не указан"}</div>
+                  <div class="city-sub">${[entry.country].filter(Boolean).join(", ")}</div>
+                </div>
+                <span class="pill">${entry.people.length}</span>
+              </div>
+              <ul class="people-list">${people}${extra}</ul>
+            </div>
+          `;
+        }).join("");
+
+        container.innerHTML = html;
+
+        // Навешиваем клики для зума к городу
+        container.querySelectorAll(".city-block").forEach(block => {
+          block.addEventListener("click", () => {
+            const city = decodeURIComponent(block.getAttribute("data-city") || "");
+            const country = decodeURIComponent(block.getAttribute("data-country") || "");
+            const key = `${city}|${country}`;
+            const entry = cityMap.get(key);
+            if (!entry || !entry.latlngs.length) return;
+            const bounds = L.latLngBounds(entry.latlngs);
+            map.fitBounds(bounds.pad(0.3));
+            if (entry.markers && entry.markers.length) {
+              setTimeout(() => {
+                entry.markers[0].openPopup();
+              }, 200);
+            }
+          });
+        });
+      }
 
       function parseCsv(text) {
-        // Простейший CSV-парсер для значений без переводов строк и с запятыми-разделителями
+        // Улучшенный CSV-парсер, который правильно обрабатывает запятые внутри значений
         const lines = text.trim().split(/\r?\n/);
-        if (lines.length <= 1) return [];
-        // Первая строка — заголовки
+        if (lines.length <= 1) {
+          console.warn("CSV содержит только заголовок или пуст");
+          return [];
+        }
+        
+        console.log("Всего строк в CSV:", lines.length);
+        console.log("Заголовок:", lines[0]);
+        
         const rows = [];
         for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i].split(","); // достаточно для нашего формата
-          // Ожидаемые колонки: Name, Role, City, Country, Latitude, Longitude, Timestamp
-          rows.push(cols);
+          const line = lines[i].trim();
+          if (!line) continue; // Пропускаем пустые строки
+          
+          const cols = [];
+          let current = "";
+          let inQuotes = false;
+          
+          for (let j = 0; j < line.length; j++) {
+            const char = line[j];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              cols.push(current.trim());
+              current = "";
+            } else {
+              current += char;
+            }
+          }
+          cols.push(current.trim()); // последняя колонка
+          
+          // Ожидаемые колонки: Name, Role, City, Country, Latitude, Longitude, Timestamp, Photo
+          // Минимум 6 колонок (до Longitude включительно)
+          if (cols.length >= 6) {
+            // Заполняем недостающие колонки пустыми строками
+            while (cols.length < 8) {
+              cols.push("");
+            }
+            rows.push(cols);
+          } else {
+            console.warn(`Строка ${i} имеет недостаточно колонок (${cols.length}):`, cols);
+          }
         }
+        
+        console.log("Успешно распарсено строк:", rows.length);
         return rows;
       }
 
@@ -78,66 +592,410 @@
         // Разбираем опубликованный HTML Google Sheets и вытаскиваем первую таблицу с данными
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, "text/html");
-        // В публикуемом HTML у Google таблицы обычно внутри .grid-container table
-        const table = doc.querySelector("table");
-        if (!table) return [];
+        
+        // Пробуем разные селекторы для таблицы
+        let table = doc.querySelector("table");
+        if (!table) {
+          table = doc.querySelector(".grid-container table");
+        }
+        if (!table) {
+          table = doc.querySelector("tbody");
+        }
+        
+        if (!table) {
+          console.warn("Таблица не найдена в HTML");
+          return [];
+        }
+        
         const rows = [];
         const trList = table.querySelectorAll("tr");
-        if (trList.length <= 1) return [];
+        console.log("Найдено строк в таблице:", trList.length);
+        
+        if (trList.length <= 1) {
+          console.warn("Таблица содержит только заголовок или пуста");
+          return [];
+        }
+        
+        // Выводим заголовок для отладки
+        if (trList.length > 0) {
+          const headerCells = Array.from(trList[0].querySelectorAll("td, th")).map(cell => cell.textContent.trim());
+          console.log("Заголовок таблицы:", headerCells);
+        }
+        
         for (let i = 1; i < trList.length; i++) { // пропускаем заголовок
           const cells = Array.from(trList[i].querySelectorAll("td")).map(td => td.textContent.trim());
           if (cells.length >= 6) {
-            rows.push(cells.slice(0, 6)); // Name, Role, City, Country, Latitude, Longitude
+            // Заполняем недостающие колонки
+            while (cells.length < 8) {
+              cells.push("");
+            }
+            rows.push(cells.slice(0, 8)); // Name, Role, City, Country, Latitude, Longitude, Timestamp, Photo
+          } else {
+            console.warn(`Строка ${i} имеет недостаточно ячеек (${cells.length}):`, cells);
           }
         }
-        return rows.filter(cols => cols[4] && cols[5]); // только с координатами
+        
+        const filtered = rows.filter(cols => {
+          const lat = parseFloat(cols[4]);
+          const lng = parseFloat(cols[5]);
+          return cols[4] && cols[5] && !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+        });
+        
+        console.log("После фильтрации по координатам:", filtered.length);
+        return filtered;
       }
 
       async function loadData() {
         try {
-          // Сначала пробуем pubhtml (не требует специальных разрешений gviz)
+          document.getElementById("updated").textContent = "Загрузка данных…";
+          
+          // Сначала пробуем CSV (более надежный формат)
           let rows = [];
+          let errorMessage = "";
+          
           try {
-            const htmlResp = await fetch(PUBHTML_URL, { cache: "no-store" });
-            if (htmlResp.ok) {
-              const html = await htmlResp.text();
-              rows = parsePubHtml(html);
+            showProgress(20, "Загрузка CSV данных...", "");
+            console.log("Загружаем CSV из:", CSV_URL);
+            const response = await fetchViaProxy(CSV_URL);
+            
+            console.log("Response status:", response.status, response.statusText);
+            console.log("Response headers:", [...response.headers.entries()]);
+            
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-          } catch (e) {
-            console.warn("PUBHTML load failed, fallback to CSV", e);
-          }
-          // Если pubhtml не дал данных — пробуем CSV как резерв
-          if (rows.length === 0) {
-            const response = await fetch(CSV_URL, { cache: "no-store" });
-            if (!response.ok) throw new Error("Не удалось получить CSV");
+            
+            showProgress(40, "Обработка CSV данных...", "");
             const csv = await response.text();
-            rows = parseCsv(csv).filter(cells => cells.length >= 6 && cells[4] && cells[5]);
+            console.log("CSV получен, длина:", csv.length);
+            console.log("Первые 500 символов CSV:", csv.substring(0, 500));
+            
+            if (!csv || csv.trim().length === 0) {
+              throw new Error("CSV файл пустой");
+            }
+            
+            showProgress(50, "Парсинг данных...", "");
+            const parsedRows = parseCsv(csv);
+            console.log("Всего распарсено строк (до фильтрации):", parsedRows.length);
+            
+            if (parsedRows.length > 0) {
+              console.log("Пример первой строки:", parsedRows[0]);
+            }
+            
+            rows = parsedRows.filter(cells => {
+              // Фильтруем только строки с валидными координатами
+              if (cells.length < 6) {
+                console.warn("Строка с недостаточным количеством колонок:", cells);
+                return false;
+              }
+              const lat = parseFloat(cells[4]);
+              const lng = parseFloat(cells[5]);
+              const isValid = !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+              if (!isValid) {
+                console.warn("Строка с невалидными координатами:", cells);
+              }
+              return isValid;
+            });
+            console.log("После фильтрации осталось строк:", rows.length);
+          } catch (csvError) {
+            console.error("CSV load failed:", csvError);
+            errorMessage = `CSV: ${csvError.message}`;
+            
+            // Если CSV не сработал — пробуем pubhtml
+            try {
+              showProgress(20, "Загрузка HTML данных...", "");
+              console.log("Пробуем загрузить PUBHTML из:", PUBHTML_URL);
+              const htmlResp = await fetchViaProxy(PUBHTML_URL);
+              
+              console.log("PUBHTML Response status:", htmlResp.status, htmlResp.statusText);
+              
+              if (htmlResp.ok) {
+                showProgress(40, "Обработка HTML данных...", "");
+                const html = await htmlResp.text();
+                console.log("HTML получен, длина:", html.length);
+                console.log("Первые 1000 символов HTML:", html.substring(0, 1000));
+                
+                showProgress(50, "Парсинг HTML...", "");
+                rows = parsePubHtml(html);
+                console.log("PUBHTML распарсено строк:", rows.length);
+                
+                if (rows.length === 0 && html.length > 0) {
+                  // Попробуем найти таблицу другим способом
+                  const parser = new DOMParser();
+                  const doc = parser.parseFromString(html, "text/html");
+                  const allTables = doc.querySelectorAll("table");
+                  console.log("Найдено таблиц в HTML:", allTables.length);
+                  
+                  if (allTables.length > 0) {
+                    console.log("Первая таблица:", allTables[0].outerHTML.substring(0, 500));
+                  }
+                }
+              } else {
+                throw new Error(`HTTP ${htmlResp.status}: ${htmlResp.statusText}`);
+              }
+            } catch (htmlError) {
+              console.error("PUBHTML также не сработал:", htmlError);
+              errorMessage += ` | PUBHTML: ${htmlError.message}`;
+              
+              // Если файл открыт локально, добавляем подсказку о прокси
+              if (isLocalFile && (htmlError.message.includes('CORS') || htmlError.message.includes('Failed to fetch'))) {
+                errorMessage += ". Запустите сервер: uvicorn src.map_service:app --reload";
+              }
+            }
+          }
+
+          // Проверяем на CORS ошибки
+          if (rows.length === 0 && errorMessage === "") {
+            errorMessage = "Не удалось загрузить данные. Проверьте публикацию таблицы или доступность прокси.";
           }
 
           document.getElementById("counter").textContent = rows.length;
-          document.getElementById("updated").textContent = "Последнее обновление: " + new Date().toLocaleString();
-
           markers.clearLayers();
 
-          rows.forEach(([name, role, city, country, lat, lng]) => {
-            const info = `
-              <strong>${name || "Сотрудник"}</strong><br/>
-              ${role || "Роль не указана"}<br/>
-              ${[city, country].filter(Boolean).join(", ")}<br/>
-              <small>${lat}, ${lng}</small>
+          if (rows.length > 0) {
+            showProgress(60, "Подготовка маркеров...", `Найдено ${rows.length} сотрудников`);
+            
+            // Группируем маркеры по координатам для добавления смещения
+            const locationGroups = new Map();
+            // Группируем по городам для сайдбара
+            const cityMap = new Map();
+            
+            rows.forEach((row, index) => {
+            const [name, role, city, country, lat, lng, timestamp, photoUrl] = row;
+            if (!lat || !lng) return;
+            
+            const latNum = parseFloat(lat);
+            const lngNum = parseFloat(lng);
+            if (isNaN(latNum) || isNaN(lngNum)) {
+              console.warn("Невалидные координаты для строки:", row);
+              return;
+            }
+            
+              // Округляем координаты до 4 знаков для группировки (примерно 11 метров)
+              const key = `${latNum.toFixed(4)},${lngNum.toFixed(4)}`;
+              
+              if (!locationGroups.has(key)) {
+                locationGroups.set(key, []);
+              }
+              locationGroups.get(key).push({
+                name, role, city, country, lat: latNum, lng: lngNum, timestamp, photoUrl, originalIndex: index
+              });
+            });
+            
+            // Подготавливаем все маркеры для батчевого добавления
+            const allMarkers = [];
+            locationGroups.forEach((group, key) => {
+              group.forEach((person, personIndex) => {
+                let finalLat = person.lat;
+                let finalLng = person.lng;
+                
+                // Если в одном месте несколько человек, добавляем смещение
+                if (group.length > 1) {
+                  // Круговое смещение вокруг центральной точки
+                  // Радиус ~150-250 м (0.0015 ± 0.0005), чтобы маркеры не разлетались слишком далеко
+                  const angle = (personIndex / group.length) * 2 * Math.PI;
+                  const baseRadius = 0.0015;
+                  const radiusVariation = (Math.random() - 0.5) * 0.001; // ±0.0005
+                  const radius = baseRadius + radiusVariation;
+                  finalLat += radius * Math.cos(angle);
+                  finalLng += radius * Math.sin(angle);
+            }
+            
+                // Город для сайдбара
+                const cityKey = `${(person.city || "").toLowerCase()}|${(person.country || "").toLowerCase()}`;
+                if (!cityMap.has(cityKey)) {
+                  cityMap.set(cityKey, {
+                    city: person.city || "Город не указан",
+                    country: person.country || "",
+                    people: [],
+                    latlngs: [],
+                    markers: []
+                  });
+                }
+                const cityEntry = cityMap.get(cityKey);
+                cityEntry.people.push({ name: person.name || "Сотрудник", role: person.role || "" });
+                cityEntry.latlngs.push([person.lat, person.lng]);
+            
+            // Проверяем, что photoUrl не пустой
+                const hasPhoto = person.photoUrl && person.photoUrl.trim() && person.photoUrl.trim() !== "" && !person.photoUrl.startsWith("ERROR");
+            
+            let info = `
+              <div style="text-align: center; min-width: 200px;">
+                    ${hasPhoto ? `<img src="${person.photoUrl.trim()}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 8px;" alt="${person.name || 'Фото'}" onerror="this.style.display='none'" /><br/>` : ''}
+                    <strong>${person.name || "Сотрудник"}</strong><br/>
+                    ${person.role || "Роль не указана"}<br/>
+                    ${[person.city, person.country].filter(Boolean).join(", ")}
+                    ${group.length > 1 ? `<br/><small style="color: #64748b;">Всего в этом месте: ${group.length}</small>` : ''}
+              </div>
             `;
-            L.marker([parseFloat(lat), parseFloat(lng)])
-              .addTo(markers)
-              .bindPopup(info);
-          });
-
-          if (rows.length) {
+            
+            // Создаём кастомную иконку с фото, если есть
+            let markerOptions = {};
+            if (hasPhoto) {
+              try {
+                markerOptions.icon = L.divIcon({
+                  className: 'custom-photo-marker',
+                      html: `<img src="${person.photoUrl.trim()}" style="width: 40px; height: 40px; border-radius: 50%; border: 3px solid #0ea5e9; object-fit: cover;" onerror="this.parentElement.style.display='none'" />`,
+                  iconSize: [40, 40],
+                  iconAnchor: [20, 20],
+                  popupAnchor: [0, -20]
+                });
+              } catch (iconError) {
+                console.warn("Ошибка создания иконки, используем стандартную:", iconError);
+                // Используем стандартную иконку
+              }
+            }
+            
+                allMarkers.push({
+                  lat: finalLat,
+                  lng: finalLng,
+                  options: markerOptions,
+                  info: info
+                });
+              });
+            });
+            
+            // Добавляем маркеры батчами для лучшей производительности
+            const BATCH_SIZE = 1000; // крупный батч для скорости
+            let addedCount = 0;
+            const totalMarkers = allMarkers.length;
+            
+            showProgress(70, "Добавление маркеров на карту...", `0 / ${totalMarkers}`);
+            
+            async function addMarkersBatch() {
+              const batch = allMarkers.slice(addedCount, addedCount + BATCH_SIZE);
+              
+              for (let i = 0; i < batch.length; i++) {
+                const markerData = batch[i];
+                try {
+                  const marker = L.marker([markerData.lat, markerData.lng], markerData.options)
+                .addTo(markers)
+                    .bindPopup(markerData.info, {
+                      closeOnClick: false,
+                      autoClose: false,
+                      closeOnEscapeKey: true
+                    });
+                  
+                  if (markerData.options && markerData.options.icon) {
+                    marker._originalIcon = markerData.options.icon;
+                  }
+                  // Добавляем маркер в соответствующий город (для клика из списка)
+                  const cityKey = `${(markerData.city || "").toLowerCase()}|${(markerData.country || "").toLowerCase()}`;
+                  const entry = cityMap.get(cityKey);
+                  if (entry) {
+                    entry.markers.push(marker);
+                  }
+                  
+                  let closeTimeout;
+                  
+                  marker.on('mouseover', function() {
+                    if (closeTimeout) {
+                      clearTimeout(closeTimeout);
+                      closeTimeout = null;
+                    }
+                    this.openPopup();
+                  });
+                  
+                  marker.on('mouseout', function() {
+                    closeTimeout = setTimeout(() => {
+                      const popup = this.getPopup();
+                      if (popup && popup.getElement()) {
+                        const popupElement = popup.getElement();
+                        const isHovering = popupElement.matches(':hover') || popupElement.querySelector(':hover');
+                        if (!isHovering) {
+                          this.closePopup();
+                        }
+                      } else {
+                        this.closePopup();
+                      }
+                    }, 200);
+                  });
+                  
+                  marker.on('popupopen', function() {
+                    const popup = this.getPopup();
+                    if (popup && popup.getElement()) {
+                      const popupElement = popup.getElement();
+                      
+                      popupElement.addEventListener('mouseenter', function() {
+                        if (closeTimeout) {
+                          clearTimeout(closeTimeout);
+                          closeTimeout = null;
+                        }
+                      });
+                      
+                      popupElement.addEventListener('mouseleave', function() {
+                        closeTimeout = setTimeout(() => {
+                          marker.closePopup();
+                        }, 200);
+                      });
+                    }
+                  });
+                  
+                  marker.on('click', function() {
+                    if (closeTimeout) {
+                      clearTimeout(closeTimeout);
+                      closeTimeout = null;
+                    }
+                    this.openPopup();
+                  });
+                } catch (markerError) {
+                  console.error("Ошибка создания маркера:", markerError);
+                }
+              }
+              
+              addedCount += batch.length;
+              const progress = 70 + Math.floor((addedCount / totalMarkers) * 25); // 70-95%
+              showProgress(progress, "Добавление маркеров на карту...", `${addedCount} / ${totalMarkers}`);
+              
+              if (addedCount < totalMarkers) {
+                // Используем requestAnimationFrame для плавной анимации
+                requestAnimationFrame(() => {
+                  setTimeout(addMarkersBatch, 10); // небольшая задержка между батчами
+                });
+              } else {
+                // Все маркеры добавлены
+                showProgress(95, "Финальная обработка...", `Все ${totalMarkers} маркеров добавлено`);
+                
+                // Небольшая задержка перед финальным обновлением
+                setTimeout(() => {
             const bounds = L.latLngBounds(rows.map(([, , , , lat, lng]) => [parseFloat(lat), parseFloat(lng)]));
             map.fitBounds(bounds.pad(0.2));
+                  
+                  showProgress(100, "Готово!", `Загружено ${totalMarkers} сотрудников`);
+                  
+                  // Скрываем прогресс-бар через небольшую задержку
+                  setTimeout(() => {
+                    hideProgress();
+                  }, 500);
+                  
+            document.getElementById("updated").textContent = "Последнее обновление: " + new Date().toLocaleString();
+                  document.getElementById("updated").style.color = "";
+                  document.getElementById("error-hint").style.display = "none";
+                  renderSidebar(cityMap);
+                }, 100);
+              }
+            }
+            
+            // Начинаем добавление маркеров
+            addMarkersBatch();
+
+          } else {
+            hideProgress();
+            const errorText = errorMessage 
+              ? `Ошибка загрузки: ${errorMessage}. Откройте консоль (F12) для деталей.`
+              : "Нет данных с координатами. Проверьте таблицу и убедитесь, что она опубликована.";
+            document.getElementById("updated").textContent = errorText;
+            document.getElementById("updated").style.color = "#dc2626";
+            document.getElementById("error-hint").style.display = "block";
+            console.warn("Нет данных для отображения. Ошибка:", errorMessage);
           }
         } catch (error) {
-          console.error(error);
-          document.getElementById("updated").textContent = "Ошибка загрузки данных. Проверьте публикацию CSV.";
+          console.error("Критическая ошибка загрузки данных:", error);
+          console.error("Stack trace:", error.stack);
+          hideProgress();
+          document.getElementById("updated").textContent = "Критическая ошибка: " + error.message + ". Откройте консоль браузера (F12) для деталей.";
+          document.getElementById("updated").style.color = "#dc2626";
+          document.getElementById("error-hint").style.display = "block";
         }
       }
 
