@@ -1,0 +1,1317 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Лестница целей</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --card: #ffffff;
+      --border: #dfe3e8;
+      --text: #1c1f23;
+      --muted: #5c6370;
+      --accent: #2a7ade;
+      --accent-soft: rgba(42, 122, 222, 0.08);
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    header {
+      padding: 32px 24px 16px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    p.lead {
+      margin: 0;
+      color: var(--muted);
+    }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+    .controls {
+      max-width: 1200px;
+      margin: 0 auto 16px;
+      padding: 0 24px;
+    }
+    .builder, .summary-page {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .input-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .search-wrap {
+      position: relative;
+    }
+    label {
+      font-size: 14px;
+      color: var(--muted);
+    }
+    input[type="text"] {
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+      width: 100%;
+      outline: none;
+      transition: border-color 120ms ease, box-shadow 120ms ease;
+    }
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    .suggestions {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      margin-top: 6px;
+      z-index: 5;
+      max-height: 220px;
+      overflow: auto;
+      display: none;
+    }
+    .suggestions.visible { display: block; }
+    .suggestion {
+      padding: 10px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+    }
+    .suggestion:last-child { border-bottom: none; }
+    .suggestion:hover { background: var(--accent-soft); }
+    .suggestion .title { font-weight: 600; font-size: 14px; margin: 0 0 4px; }
+    .suggestion .meta { color: var(--muted); font-size: 12px; margin: 0; }
+    .selected-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 12px;
+    }
+    .selected-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      background: var(--accent-soft);
+      color: var(--text);
+      border: 1px solid var(--accent);
+      border-radius: 10px;
+      font-size: 13px;
+    }
+    .tag button {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--muted);
+      padding: 0 4px;
+    }
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .btn {
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: transform 100ms ease, box-shadow 100ms ease, opacity 100ms ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); box-shadow: none; }
+    .btn.ghost {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      box-shadow: none;
+    }
+    main {
+      max-width: 1200px;
+      margin: 0 auto 32px;
+      padding: 0 24px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .ladder {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .column {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .column h3 {
+      margin: 0;
+      font-size: 16px;
+      color: var(--muted);
+      letter-spacing: -0.01em;
+    }
+    .card {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 12px;
+      padding: 12px;
+      cursor: pointer;
+      transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+    }
+    .card:hover {
+      border-color: var(--accent);
+      box-shadow: var(--shadow);
+      transform: translateY(-1px);
+    }
+    .card.selected {
+      border-color: var(--accent);
+      box-shadow: var(--shadow);
+      background: var(--accent-soft);
+    }
+    .card-title {
+      margin: 0 0 6px;
+      font-weight: 600;
+      font-size: 15px;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .chip {
+      background: #eef2f6;
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .details h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+    .details .meta {
+      color: var(--muted);
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+    }
+    .block {
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      background: #fafbfc;
+    }
+    .block h4 {
+      margin: 0 0 6px;
+      font-size: 14px;
+      color: var(--muted);
+      letter-spacing: -0.01em;
+    }
+    .list {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--text);
+      font-size: 14px;
+    }
+    .empty {
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .summary {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .summary-header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .summary-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .summary-table th, .summary-table td {
+      border-bottom: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+      background: #fff;
+    }
+    .summary-table th {
+      background: #f7f9fb;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .summary-table tbody tr:nth-child(odd) td {
+      background: #fafdff;
+    }
+    .summary-table tr:last-child td { border-bottom: none; }
+    textarea.json-output {
+      width: 100%;
+      min-height: 160px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-size: 13px;
+      resize: vertical;
+    }
+    .editable {
+      width: 100%;
+      min-height: 48px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 14px;
+      background: #fff;
+      overflow: hidden;
+      resize: vertical;
+    }
+    .editable.small { min-height: 36px; }
+    .stacked {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .intro {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .intro label {
+      font-weight: 600;
+      color: var(--text);
+    }
+    .intro-input {
+      width: 100%;
+      min-height: 90px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 15px;
+      background: #fff;
+      box-shadow: var(--shadow);
+      outline: none;
+      transition: border-color 120ms ease, box-shadow 120ms ease;
+    }
+    .intro-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    .intro .note {
+      margin: 0;
+    }
+    .note {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .landing-mode .builder { display: none; }
+    .landing-mode header { padding-bottom: 0; }
+    .landing-mode .summary-page { margin-top: 16px; }
+    @media print {
+      body { background: #fff; }
+      header, .builder, .actions, .json-output, .summary-actions .btn { display: none !important; }
+      .summary-page { margin: 0; }
+      .panel { box-shadow: none; border: 1px solid #ccc; }
+    }
+    @media (max-width: 640px) {
+      header, .controls, main { padding-left: 16px; padding-right: 16px; }
+      .actions { flex-direction: column; align-items: stretch; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Лестница целей</h1>
+    <p class="lead">Выберите боль/цель клиента и получите цепочку задач с метриками, KPI и источниками данных.</p>
+  </header>
+
+  <div class="builder">
+  <section class="controls">
+    <div class="panel">
+      <div class="input-row">
+        <label for="goalInput">Введите боль или выберите из списка</label>
+        <div class="search-wrap">
+          <input id="goalInput" placeholder="Например: вырастить долю рынка" autocomplete="off">
+          <div id="suggestions" class="suggestions"></div>
+        </div>
+      </div>
+      <div class="selected-row">
+        <label>Выбранные цели (мультивыбор)</label>
+        <div id="selectedList" class="selected-list"></div>
+        <div class="actions">
+          <button id="generateBtn" class="btn">Сгенерировать итог</button>
+          <button id="clearBtn" class="btn ghost">Сбросить выбор</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <main>
+    <section class="panel">
+      <div class="ladder" id="ladder"></div>
+    </section>
+
+    <section class="panel details" id="details"></section>
+  </main>
+  </div>
+
+  <div class="summary-page">
+    <section class="panel">
+      <div class="summary" id="summary">
+        <div class="summary-header">
+          <h3>Итоговый “лендинг”</h3>
+          <div class="summary-actions">
+            <button class="btn ghost" id="toggleViewBtn">Полный экран итога</button>
+            <button class="btn ghost" id="refreshBtn">Пересчитать</button>
+            <button class="btn ghost" id="downloadJsonBtn">Скачать JSON</button>
+            <button class="btn" id="printBtn">PDF/Печать</button>
+          </div>
+        </div>
+        <div class="note">Можно редактировать метрики/KPI/источники и заголовки, изменения сохраняются в браузерном кэше.</div>
+        <div class="intro">
+          <label for="introInput">Вводная / описание лендинга</label>
+          <textarea id="introInput" class="intro-input" placeholder="Короткая вводная, контекст или итоговые инсайты. Поле сохраняется в кэше и попадает в JSON."></textarea>
+          <p class="note">Это поле видно здесь и в выгружаемом JSON. Сохраняется локально (localStorage).</p>
+        </div>
+        <div id="summaryContent" class="empty">Нажмите “Сгенерировать итог”, чтобы собрать таблицу и JSON.</div>
+        <textarea readonly class="json-output" id="jsonOutput" style="display:none;"></textarea>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const levels = [
+      { id: "business", name: "Бизнес" },
+      { id: "marketing1", name: "Маркетинг 1 уровень" },
+      { id: "marketing2", name: "Маркетинг 2 уровень" },
+      { id: "communication", name: "Коммуникация" },
+      { id: "media", name: "Медиа" }
+    ];
+
+    const goals = [
+      {
+        id: "biz_market_share",
+        level: "business",
+        title: "вырастить долю рынка",
+        painExamples: ["проседает доля", "нужно обогнать конкурентов"],
+        howToEvaluate: "Сравнение объёма продаж бренда с общим объёмом рынка",
+        metrics: ["Доля рынка", "Объем продаж", "Темп роста", "Выручка"],
+        kpiTargets: ["Рост доли рынка +2 п.п. за квартал", "Рост выручки в приоритетных SKU +10%"],
+        clientData: ["Собственные исследования клиента"],
+        altSources: ["Финансовые отчеты", "Nielsen", "GfK", "Росстат", "ФНС", "Spark", "VCIOM", "Открытые тендеры"],
+        freeSources: ["Росстат", "Открытые данные маркетплейсов (Ozon/WB)", "Яндекс Wordstat"]
+      },
+      {
+        id: "biz_period_sales",
+        level: "business",
+        title: "увеличить продажи в конкретный период",
+        painExamples: ["проседание продаж в сезон", "нужно ускорить продажи"],
+        howToEvaluate: "Сравнение продаж за аналогичные периоды, анализ динамики",
+        metrics: ["Продажи (шт./₽)", "Темп роста", "Отгрузки", "Возвраты"],
+        kpiTargets: ["Рост продаж +15% к аналогичному периоду", "Конверсия в покупку из рекламы ≥3%"],
+        clientData: ["BI-система", "CRM"],
+        altSources: ["Продажи через онлайн-кассы (Контур.Маркет, Evotor аналитика)"],
+        freeSources: ["Wordstat", "Динамика отзывов/упоминаний в соцмедиа"]
+      },
+      {
+        id: "biz_profit",
+        level: "business",
+        title: "получить прибыль в заданном размере",
+        painExamples: ["не выходим на план по прибыли", "надо улучшить ROI"],
+        howToEvaluate: "Сравнение фактической и плановой прибыли",
+        metrics: ["EBITDA", "Валовая прибыль", "Операционная прибыль", "ROI"],
+        kpiTargets: ["EBITDA +10%", "ROI кампаний ≥120%", "CPL < 500 ₽"],
+        clientData: ["Финансы", "Отчетность"],
+        altSources: ["Бенчмарки отраслей (Strategy Partners, KPMG)"],
+        freeSources: ["Яндекс Wordstat", "Мониторинг цен конкурентов"]
+      },
+      {
+        id: "biz_new_market",
+        level: "business",
+        title: "завоевать долю на новом рынке",
+        painExamples: ["выход в новый регион/категорию", "нужно быстро набрать долю"],
+        howToEvaluate: "Объем продаж в новом регионе/категории, динамика доли рынка",
+        metrics: ["Доля рынка", "Продажи", "Количество новых клиентов"],
+        kpiTargets: ["Доля рынка ≥5% в новом регионе", "≥1000 новых клиентов в 1 кв."],
+        clientData: ["Сейлс отчеты", "Дистрибуция", "Nielsen"],
+        altSources: ["Nielsen", "Росстат (по регионам)", "ЕМИСС"],
+        freeSources: ["2ГИС", "Wordstat по регионам"]
+      },
+      {
+        id: "mkt1_switch_competitors",
+        level: "marketing1",
+        title: "переключить аудиторию конкурентов",
+        painExamples: ["отобрать клиентов конкурентов", "пересадить лояльных"],
+        howToEvaluate: "Измерение доли переключившихся потребителей, анализ источников трафика",
+        metrics: ["% новых клиентов от конкурентов", "Доля повторных", "NPS", "Знание конкурентов"],
+        kpiTargets: ["+10% новых клиентов от конкурентов", "Повторные покупки +15%"],
+        clientData: ["CRM"],
+        altSources: ["Исследования", "Формы обратной связи", "Соцсети (ВКонтакте, Отзовик)"],
+        freeSources: ["Wordstat (сравнение брендов)"]
+      },
+      {
+        id: "mkt1_new_audience",
+        level: "marketing1",
+        title: "привлечь в категорию новую аудиторию",
+        painExamples: ["зайти в новые сегменты", "привести новичков в категорию"],
+        howToEvaluate: "Анализ проникновения в новые сегменты, исследования поведения",
+        metrics: ["% новых потребителей", "Рост количества потребителей", "First-time buyers"],
+        kpiTargets: ["Прирост новой аудитории +20%", "Рост базы CRM +15%"],
+        clientData: ["Панель потребителей"],
+        altSources: ["Исследования (анкетирование, опросы)"],
+        freeSources: ["Wordstat", "Комментарии в соцсетях"]
+      },
+      {
+        id: "mkt1_purchase_frequency",
+        level: "marketing1",
+        title: "повысить частоту покупки",
+        painExamples: ["покупают слишком редко", "нужно ускорить повторы"],
+        howToEvaluate: "Сравнение средней частоты покупок по времени",
+        metrics: ["Среднее количество покупок", "RFM"],
+        kpiTargets: ["Увеличение средней частоты покупок на +1 раз в квартал"],
+        clientData: ["CRM", "Транзакционные данные"],
+        altSources: ["Исследования (анкетирование, опросы)"],
+        freeSources: ["Социальные сети", "Отзывы"]
+      },
+      {
+        id: "mkt1_basket_size",
+        level: "marketing1",
+        title: "увеличить количество товаров в корзине",
+        painExamples: ["средний чек низкий", "мало upsell/cross-sell"],
+        howToEvaluate: "Средний чек, анализ структуры корзины",
+        metrics: ["Средний чек", "SKU на корзину", "Upsell/cross-sell"],
+        kpiTargets: ["Средний чек +10%", "Доля заказов с upsell ≥30%"],
+        clientData: ["BI", "Корзинный анализ"],
+        altSources: ["Исследования, отзывы, данные онлайн-магазинов и маркетплейсов"],
+        freeSources: ["Отзывы, обсуждения в карточках товаров"]
+      },
+      {
+        id: "mkt1_trial",
+        level: "marketing1",
+        title: "стимулировать пробную покупку",
+        painExamples: ["нужно больше проб", "активации купонов низкие"],
+        howToEvaluate: "Отслеживание активаций, купонов, промо",
+        metrics: ["Кол-во пробных покупок", "Использование купонов", "Промо отклик"],
+        kpiTargets: ["10 000 пробных покупок при CPL ≤150 ₽"],
+        clientData: ["Digital трекинг", "Купоны"],
+        altSources: ["Рост поисковых запросов (косвенно)", "Изменение конверсии в покупку из BHT"],
+        freeSources: ["Wordstat", "Отслеживание упоминаний"]
+      },
+      {
+        id: "mkt1_loyalty",
+        level: "marketing1",
+        title: "повысить лояльность аудитории",
+        painExamples: ["низкий retention", "слабый NPS"],
+        howToEvaluate: "Повторные покупки, уровень удержания, вовлеченность",
+        metrics: ["Доля постоянных клиентов", "Customer satisfaction score"],
+        kpiTargets: ["Retention rate ≥70%", "NPS ≥40", "Доля повторных покупок +15%"],
+        clientData: ["Панель", "Транзакции", "Опросы внутри сервисов"],
+        altSources: ["Опросы, BHT, Telegram-боты, опросники соцсетей"],
+        freeSources: ["Отзывы", "Соцсети", "Повторные комментарии"]
+      },
+      {
+        id: "mkt2_spontaneous_awareness",
+        level: "marketing2",
+        title: "построить спонтанное знание бренда",
+        painExamples: ["бренд не вспоминают", "низкое спонтанное знание"],
+        howToEvaluate: "Бренд-трекинг (BHT), исследование спонтанного знания",
+        metrics: ["Знание в динамике", "Знание по сегментам"],
+        kpiTargets: ["Рост спонтанного знания +10 п.п. по BHT"],
+        clientData: ["Исследования бренда, BHT"],
+        altSources: ["Исследования, BHT"],
+        freeSources: ["VK/Telegram-опросы", "Wordstat"]
+      },
+      {
+        id: "mkt2_consideration",
+        level: "marketing2",
+        title: "увеличить рассмотрение бренда",
+        painExamples: ["нас мало рассматривают", "нужно поднять consideration"],
+        howToEvaluate: "Исследования consideration set, аналитика медийных кампаний",
+        metrics: ["% consideration", "Охват с вовлечением", "CTR"],
+        kpiTargets: ["+5 п.п. consideration", "Рост CTR +20%"],
+        clientData: ["BHT"],
+        altSources: ["BHT", "Поисковый анализ"],
+        freeSources: ["Wordstat"]
+      },
+      {
+        id: "mkt2_attribute",
+        level: "marketing2",
+        title: "вырастить показатель имиджевого атрибута",
+        painExamples: ["нас не считают современными", "нужно укрепить атрибут"],
+        howToEvaluate: "Бренд-трекинг, атрибутивные исследования",
+        metrics: ["Динамика восприятия имиджевых характеристик"],
+        kpiTargets: ["Рост ассоциаций с атрибутом (напр. «современный») с 45% до 60%"],
+        clientData: ["Отдел продаж", "Отзывы"],
+        altSources: ["BHT", "U&A анализ", "Поисковый спрос", "Отзывы"],
+        freeSources: ["Комментарии в соцсетях", "Отзывы"]
+      },
+      {
+        id: "mkt2_relevance",
+        level: "marketing2",
+        title: "повысить релевантность для аудитории",
+        painExamples: ["бренд не про нас", "слабая релевантность сегментам"],
+        howToEvaluate: "Исследования восприятия, сегментный анализ",
+        metrics: ["% релевантности по сегментам", "Рост лояльности", "Предпочтения"],
+        kpiTargets: ["+15% рост релевантности", "+20% рост взаимодействий"],
+        clientData: ["Качественные исследования"],
+        altSources: ["Качественные исследования (интервью, фокус-группы)"],
+        freeSources: ["Комментарии", "Посты", "Обсуждения"]
+      },
+      {
+        id: "mkt2_conversion_to_purchase",
+        level: "marketing2",
+        title: "увеличить конверсию из знания в покупку",
+        painExamples: ["знают, но не покупают", "слабая воронка consideration → покупка"],
+        howToEvaluate: "Сравнение знание → рассмотрение → покупка",
+        metrics: ["Конверсия из рассмотрения в покупку", "Uplift после активности"],
+        kpiTargets: ["CR от рассмотрения к покупке +2 п.п."],
+        clientData: ["Воронка", "Атрибутивные модели"],
+        altSources: ["Яндекс.Метрика + utm-метки"],
+        freeSources: ["Wordstat"]
+      },
+      {
+        id: "mkt2_wom",
+        level: "marketing2",
+        title: "создать желание рекомендовать другим",
+        painExamples: ["мало рекомендаций", "нужно раскачать WOM"],
+        howToEvaluate: "Исследования по WOM, репутационные показатели",
+        metrics: ["NPS", "Количество упоминаний", "Share of voice"],
+        kpiTargets: ["NPS ≥40", "Позитивные упоминания ≥80%"],
+        clientData: ["Источники новых покупателей через отдел продаж", "Отзывы"],
+        altSources: ["Мониторинг соцмедиа", "Опросы"],
+        freeSources: ["VK/Telegram комментарии", "Отзывы"]
+      },
+      {
+        id: "comm_differentiation",
+        level: "communication",
+        title: "усилить дифференциацию от конкурентов",
+        painExamples: ["нас не отличают", "УТП не помнят"],
+        howToEvaluate: "Тесты восприятия УТП, знание отличий бренда",
+        metrics: ["% аудитории, считающей бренд уникальным", "Знание УТП"],
+        kpiTargets: ["70% аудитории запоминают УТП", "Рост отличия на perception map +10%"],
+        clientData: ["Отдел продаж", "Отзывы"],
+        altSources: ["Качественные исследования (интервью, фокус-группы)"],
+        freeSources: ["Контент-анализ соцсетей", "Опросы VK/Telegram"]
+      },
+      {
+        id: "comm_break_stereotype",
+        level: "communication",
+        title: "сломать стереотип о продукте",
+        painExamples: ["устойчивый негативный образ", "старый стереотип"],
+        howToEvaluate: "Исследования изменения восприятия",
+        metrics: ["Доля аудитории с обновленным мнением"],
+        kpiTargets: ["60% аудитории изменили мнение о продукте"],
+        clientData: ["Комментарии", "Отзывы"],
+        altSources: ["Исследования", "Отзывы", "Обзоры"],
+        freeSources: ["Обзоры", "Комментарии", "Стримы"]
+      },
+      {
+        id: "comm_new_view",
+        level: "communication",
+        title: "предложить новый взгляд на категорию",
+        painExamples: ["нужен новый сценарий использования", "категория устала"],
+        howToEvaluate: "Понимание новых сценариев использования",
+        metrics: ["Новые поведенческие инсайты", "% аудитории, принявшей идею"],
+        kpiTargets: ["1000+ упоминаний нового сценария", "20% положительный отклик"],
+        clientData: ["Обратная связь"],
+        altSources: ["Фокус-группы", "Соцмедиа"],
+        freeSources: ["Тренды Reels/Клипы", "Telegram"]
+      },
+      {
+        id: "comm_explain_advantage",
+        level: "communication",
+        title: "объяснить продуктовое преимущество",
+        painExamples: ["не понимают выгоды", "нужно донести ключевой месседж"],
+        howToEvaluate: "Исследование понимания преимуществ",
+        metrics: ["% понимания свойств/преимуществ"],
+        kpiTargets: ["≥70% правильное воспроизведение ключевого месседжа"],
+        clientData: ["Визуалы", "Лендинги", "Сайты"],
+        altSources: ["Исследования"],
+        freeSources: ["Вопросы и ответы", "Google Forms", "VK Polls"]
+      },
+      {
+        id: "comm_new_consumption",
+        level: "communication",
+        title: "создать новую ситуацию потребления",
+        painExamples: ["нет новых кейсов использования", "хотим расширить consumption"],
+        howToEvaluate: "Фокус-группы, анализ поведения",
+        metrics: ["Рост потребления в новых ситуациях"],
+        kpiTargets: ["15% прирост продаж в новых ситуациях"],
+        clientData: ["Дневники потребителей"],
+        altSources: ["Инсайты, фокус-группы"],
+        freeSources: ["Поисковый спрос", "Reels/Клипы", "Wordstat", "Видеообзоры"]
+      },
+      {
+        id: "comm_culture_fit",
+        level: "communication",
+        title: "определить место бренда в культуре",
+        painExamples: ["бренд вне культурных кодов", "хотим культурную вовлеченность"],
+        howToEvaluate: "Ассоциативные карты, исследования восприятия",
+        metrics: ["% ассоциаций с культурными кодами", "Узнаваемость"],
+        kpiTargets: ["Индекс культурной вовлечённости +20%"],
+        clientData: ["Исследования"],
+        altSources: ["Культурные исследования"],
+        freeSources: ["Тренды в соцсетях", "Поисковый спрос"]
+      },
+      {
+        id: "comm_premium_price",
+        level: "communication",
+        title: "обосновать стоимость премиум продукта",
+        painExamples: ["считают цену завышенной", "нужно подтвердить ценность"],
+        howToEvaluate: "Готовность платить, восприятие ценности",
+        metrics: ["% аудитории, считающей продукт оправданно дорогим", "Perceived value"],
+        kpiTargets: ["≥60% аудитории считают цену оправданной"],
+        clientData: ["Опросы", "Тесты на ценообразование"],
+        altSources: ["Исследования", "Опросы"],
+        freeSources: ["Мониторинг отзывов", "Цены на маркетплейсах"]
+      },
+      {
+        id: "media_reach_freq",
+        level: "media",
+        title: "обеспечить нужный охват и частоту",
+        painExamples: ["недобор охвата", "нужна частота 4+"],
+        howToEvaluate: "Пост-анализ кампаний, reach & frequency",
+        metrics: ["Охват", "Частота", "TRP", "CPM"],
+        kpiTargets: ["Охват 80% ЦА при частоте 4+ за месяц"],
+        clientData: ["Пост-бай отчеты", "Ad server"],
+        altSources: ["Пост-бай отчеты", "Ad server"],
+        freeSources: ["VK Ads (демо)", "Яндекс.Директ (демо)", "Метрика"]
+      },
+      {
+        id: "media_efficiency",
+        level: "media",
+        title: "повысить эффективность размещений",
+        painExamples: ["дорогой CPM/CPC", "низкий CTR/VTR"],
+        howToEvaluate: "Сравнение показателей CPM, VTR, CPC по каналам",
+        metrics: ["CPM", "CPC", "CPL", "CPA", "VTR"],
+        kpiTargets: ["Снижение CPM на 20%", "Рост эффективности по CTR"],
+        clientData: ["Медиаплатформы", "Сквозная аналитика"],
+        altSources: ["Кабинеты VK, Яндекс, MyTarget", "Аналитика ВК"],
+        freeSources: ["Яндекс.Директ", "VK Ads", "Метрика", "myTarget (открытые дашборды)"]
+      },
+      {
+        id: "media_engagement",
+        level: "media",
+        title: "увеличить вовлеченность в digital",
+        painExamples: ["низкий ER", "падают досмотры"],
+        howToEvaluate: "Анализ взаимодействий, соцмедиа, видео",
+        metrics: ["CTR", "ER", "Досмотры видео", "Лайки", "Репосты"],
+        kpiTargets: ["Рост ER до 10%", "Средняя глубина просмотра 70%"],
+        clientData: ["Соцсети", "Видеоплатформы"],
+        altSources: ["VK stats", "TG stats", "LiveDune"],
+        freeSources: ["YouTube", "VK", "Telegram-боты"]
+      },
+      {
+        id: "media_new_segments",
+        level: "media",
+        title: "обеспечить охват новых сегментов",
+        painExamples: ["недоохват новой ЦА", "нужен охват по демо"],
+        howToEvaluate: "Медиа-планирование с прицелом на новые аудитории",
+        metrics: ["Reach по демографии", "GRP по новым сегментам"],
+        kpiTargets: ["Охват ЦА1 — 60%+", "ЦА2 — 50%+"],
+        clientData: ["Ad серверы", "Посткампейновые исследования"],
+        altSources: ["Look-alike аудитории в VK", "Open data от Census", "ЭМИСС"],
+        freeSources: ["Метрика", "Ads кабинеты", "Wordstat по сегментам"]
+      },
+      {
+        id: "media_mix",
+        level: "media",
+        title: "оптимизировать медиамикс",
+        painExamples: ["неэффективное распределение бюджета", "нужно понять вклад каналов"],
+        howToEvaluate: "A/B тестирование каналов, маркетинг-микс моделинг",
+        metrics: ["Доля бюджета по каналам", "ROI по каналам"],
+        kpiTargets: ["Перераспределение бюджета, рост ROI на 15%"],
+        clientData: ["MMM (Media Mix Modeling)", "Аналитика"],
+        altSources: [],
+        freeSources: []
+      },
+      {
+        id: "media_cpl",
+        level: "media",
+        title: "обеспечить нужный объем лидов по заданной цене",
+        painExamples: ["нужен план по лидам", "контроль CPL"],
+        howToEvaluate: "Сравнение CPL по каналам, емкость инструмента",
+        metrics: ["CPL", "Количество лидов"],
+        kpiTargets: ["4000 лидов с CPL ≤1200 ₽", "Повысить конверсию для CPL ≤1200 ₽"],
+        clientData: [],
+        altSources: [],
+        freeSources: []
+      }
+    ];
+
+    const storageKey = "ladder_overrides_v1";
+    const storageIntroKey = "ladder_intro_v1";
+    const goalOrder = new Map(goals.map((g, idx) => [g.id, idx]));
+    const loadOverrides = () => {
+      try { return JSON.parse(localStorage.getItem(storageKey) || "{}"); } catch { return {}; }
+    };
+    const saveOverrides = (data) => localStorage.setItem(storageKey, JSON.stringify(data));
+    const loadIntro = () => {
+      try { return localStorage.getItem(storageIntroKey) || ""; } catch { return ""; }
+    };
+    const saveIntro = (value) => localStorage.setItem(storageIntroKey, value);
+
+    const state = {
+      selectedIds: [goals[0].id],
+      activeId: goals[0].id,
+      summaryGenerated: false,
+      overrides: loadOverrides(),
+      intro: loadIntro(),
+      view: "builder" // or "landing"
+    };
+
+    const goalInput = document.getElementById("goalInput");
+    const ladderEl = document.getElementById("ladder");
+    const detailsEl = document.getElementById("details");
+    const selectedListEl = document.getElementById("selectedList");
+    const suggestionsEl = document.getElementById("suggestions");
+    const summaryContentEl = document.getElementById("summaryContent");
+    const jsonOutputEl = document.getElementById("jsonOutput");
+    const generateBtn = document.getElementById("generateBtn");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const toggleViewBtn = document.getElementById("toggleViewBtn");
+    const printBtn = document.getElementById("printBtn");
+    const downloadJsonBtn = document.getElementById("downloadJsonBtn");
+    const introInput = document.getElementById("introInput");
+    const openPageBtn = document.createElement("button");
+    openPageBtn.className = "btn ghost";
+    openPageBtn.id = "openPageBtn";
+    openPageBtn.textContent = "Отдельная страница";
+    document.querySelector(".summary-actions")?.insertBefore(openPageBtn, downloadJsonBtn);
+
+    function levelName(levelId) {
+      return levels.find(l => l.id === levelId)?.name || "";
+    }
+
+    function searchGoals(query) {
+      const q = query.trim().toLowerCase();
+      if (!q) return [];
+      const terms = q.split(/\s+/).filter(Boolean);
+      const scoreGoal = (goal) => {
+        const haystack = [
+          goal.title,
+          ...(goal.painExamples || []),
+          ...(goal.metrics || []),
+          ...(goal.kpiTargets || [])
+        ].join(" ").toLowerCase();
+        const hits = terms.filter(t => haystack.includes(t)).length;
+        return hits;
+      };
+      return goals
+        .map(g => ({ goal: g, score: scoreGoal(g) }))
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score || a.goal.title.localeCompare(b.goal.title))
+        .map(item => item.goal)
+        .slice(0, 8);
+    }
+
+    function renderLadder() {
+      ladderEl.innerHTML = "";
+      levels.forEach(level => {
+        const col = document.createElement("div");
+        col.className = "column";
+        const title = document.createElement("h3");
+        title.textContent = level.name;
+        col.appendChild(title);
+
+        const levelGoals = goals.filter(g => g.level === level.id);
+        levelGoals.forEach(goal => {
+          const card = document.createElement("div");
+          const isSelected = state.selectedIds.includes(goal.id);
+          card.className = "card" + (isSelected ? " selected" : "");
+          card.onclick = () => toggleSelected(goal.id);
+
+          const h = document.createElement("p");
+          h.className = "card-title";
+          h.textContent = goal.title;
+          card.appendChild(h);
+
+          if (goal.metrics?.length) {
+            const chips = document.createElement("div");
+            chips.className = "chips";
+            goal.metrics.slice(0, 3).forEach(metric => {
+              const chip = document.createElement("span");
+              chip.className = "chip";
+              chip.textContent = metric;
+              chips.appendChild(chip);
+            });
+            card.appendChild(chips);
+          }
+          col.appendChild(card);
+        });
+
+        ladderEl.appendChild(col);
+      });
+    }
+
+    function renderDetails() {
+      const goal = goals.find(g => g.id === state.activeId) || goals.find(g => state.selectedIds.includes(g.id)) || goals[0];
+      if (!goal) return;
+
+      const levelName = levels.find(l => l.id === goal.level)?.name ?? "";
+      const listBlock = (title, items) => {
+        if (!items || !items.length) {
+          return `<div class="block"><h4>${title}</h4><div class="empty">—</div></div>`;
+        }
+        const li = items.map(item => `<li>${item}</li>`).join("");
+        return `<div class="block"><h4>${title}</h4><ul class="list">${li}</ul></div>`;
+      };
+
+      detailsEl.innerHTML = `
+        <h2>${goal.title}</h2>
+        <div class="meta">${levelName}${goal.painExamples?.length ? " • " + goal.painExamples.join(" / ") : ""}</div>
+        <div class="grid">
+          ${listBlock("Как оценивать", goal.howToEvaluate ? [goal.howToEvaluate] : [])}
+          ${listBlock("Метрики", goal.metrics)}
+          ${listBlock("KPI (ориентиры)", goal.kpiTargets)}
+          ${listBlock("Данные от клиента", goal.clientData)}
+          ${listBlock("Альтернативные источники", goal.altSources)}
+          ${listBlock("Бесплатные источники", goal.freeSources)}
+        </div>
+      `;
+    }
+
+    function addSelected(goalId) {
+      if (!goals.find(g => g.id === goalId)) return;
+      if (!state.selectedIds.includes(goalId)) {
+        state.selectedIds.push(goalId);
+      }
+      state.activeId = goalId;
+      render();
+    }
+
+    function removeSelected(goalId) {
+      state.selectedIds = state.selectedIds.filter(id => id !== goalId);
+      if (state.activeId === goalId) {
+        state.activeId = state.selectedIds[state.selectedIds.length - 1] || goals[0]?.id;
+      }
+      render();
+    }
+
+    function toggleSelected(goalId) {
+      if (state.selectedIds.includes(goalId)) {
+        removeSelected(goalId);
+      } else {
+        addSelected(goalId);
+      }
+    }
+
+    function renderSelectedList() {
+      if (!state.selectedIds.length) {
+        selectedListEl.innerHTML = '<div class="empty">Ничего не выбрано</div>';
+        return;
+      }
+      selectedListEl.innerHTML = state.selectedIds
+        .map(id => {
+          const g = goals.find(goal => goal.id === id);
+          if (!g) return "";
+          return `<span class="tag" data-id="${g.id}">
+            ${g.title}
+            <button aria-label="Удалить" data-remove="${g.id}">✕</button>
+          </span>`;
+        })
+        .join("");
+
+      selectedListEl.querySelectorAll("button[data-remove]").forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          removeSelected(btn.dataset.remove);
+        };
+      });
+    }
+
+    function renderSuggestions(query) {
+      const results = searchGoals(query);
+      if (!results.length || !query.trim()) {
+        suggestionsEl.classList.remove("visible");
+        suggestionsEl.innerHTML = "";
+        return;
+      }
+      suggestionsEl.innerHTML = results.map(g => `
+        <div class="suggestion" data-id="${g.id}">
+          <p class="title">${g.title}</p>
+          <p class="meta">${levelName(g.level)}${g.painExamples?.length ? " • " + g.painExamples.join(" / ") : ""}</p>
+        </div>
+      `).join("");
+      suggestionsEl.classList.add("visible");
+
+      suggestionsEl.querySelectorAll(".suggestion").forEach(item => {
+        item.onclick = () => {
+          addSelected(item.dataset.id);
+          goalInput.value = "";
+          suggestionsEl.classList.remove("visible");
+        };
+      });
+    }
+
+    function applyOverrides(goal) {
+      const ov = state.overrides[goal.id] || {};
+      return {
+        ...goal,
+        title: ov.title || goal.title,
+        metrics: ov.metrics || goal.metrics,
+        kpiTargets: ov.kpiTargets || goal.kpiTargets,
+        clientData: ov.clientData || goal.clientData,
+        altSources: ov.altSources || goal.altSources,
+        freeSources: ov.freeSources || goal.freeSources
+      };
+    }
+
+    function normalizeList(value) {
+      if (!value) return [];
+      if (Array.isArray(value)) return value;
+      return String(value)
+        .split(/[,;\n]/)
+        .map(v => v.trim())
+        .filter(Boolean);
+    }
+
+    function updateOverride(goalId, field, rawValue) {
+      const arrFields = ["metrics", "kpiTargets", "clientData", "altSources", "freeSources"];
+      const overrides = { ...state.overrides };
+      const existing = overrides[goalId] || {};
+      existing[field] = arrFields.includes(field) ? normalizeList(rawValue) : rawValue.trim();
+      overrides[goalId] = existing;
+      state.overrides = overrides;
+      saveOverrides(overrides);
+      renderSummary();
+    }
+
+    function getSelectedGoalsSorted() {
+      return state.selectedIds
+        .map(id => goals.find(g => g.id === id))
+        .filter(Boolean)
+        .sort((a, b) => (goalOrder.get(a.id) ?? 9999) - (goalOrder.get(b.id) ?? 9999));
+    }
+
+    function buildLandingPayload() {
+      const selectedGoals = getSelectedGoalsSorted();
+      const goalsPayload = selectedGoals.map(orig => {
+        const g = applyOverrides(orig);
+        return {
+          id: g.id,
+          level: levelName(g.level),
+          title: g.title,
+          metrics: g.metrics,
+          kpi: g.kpiTargets,
+          clientData: g.clientData,
+          altSources: g.altSources,
+          freeSources: g.freeSources
+        };
+      });
+      return { intro: state.intro || "", goals: goalsPayload };
+    }
+
+    function openLandingPage() {
+      const payload = buildLandingPayload();
+      if (!payload.goals.length) {
+        alert("Добавьте цели, чтобы открыть итог.");
+        return;
+      }
+      const levelList = levels.map(l => l.name);
+      const styles = `
+        * { box-sizing: border-box; }
+        body { font-family: "Inter", "Segoe UI", sans-serif; margin: 0; background: radial-gradient(circle at 20% 20%, #f0f4ff, #f7f9fb 45%, #eef3ff 90%); color: #0f172a; }
+        .page { max-width: 1200px; margin: 28px auto; background: #fff; padding: 28px; border: 1px solid #e5e7eb; border-radius: 18px; box-shadow: 0 16px 48px rgba(0,0,0,0.07); }
+        h1 { margin: 0 0 14px; font-size: 24px; letter-spacing: -0.02em; }
+        .intro { margin: 0 0 22px; white-space: pre-wrap; line-height: 1.55; background: #f7f9ff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; }
+        .muted { color: #6b7280; font-size: 13px; margin-bottom: 18px; }
+        .ladder {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 12px;
+          margin-bottom: 22px;
+        }
+        .col {
+          background: #f8fbff;
+          border: 1px solid #e5e7eb;
+          border-radius: 14px;
+          padding: 12px;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+        }
+        .col-title {
+          font-weight: 700;
+          color: #2563eb;
+          margin-bottom: 8px;
+          letter-spacing: -0.01em;
+        }
+        .card {
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          padding: 10px;
+          margin-bottom: 8px;
+          box-shadow: 0 6px 14px rgba(0,0,0,0.04);
+        }
+        .card:last-child { margin-bottom: 0; }
+        .card-title { margin: 0 0 6px; font-weight: 700; font-size: 14px; }
+        .card-sub { margin: 0; color: #475569; font-size: 13px; line-height: 1.4; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #e5e7eb; padding: 10px 12px; text-align: left; vertical-align: top; font-size: 14px; }
+        th { background: #f7f9fb; color: #5c6370; font-weight: 700; }
+        tr:nth-child(odd) td { background: #fbfdff; }
+      `;
+      const ladderColumns = levelList.map(levelName => {
+        const items = payload.goals.filter(g => g.level === levelName);
+        if (!items.length) return "";
+        const cards = items.map(g => {
+          const metrics = (g.metrics || []).slice(0, 2).join(" • ");
+          const kpi = (g.kpi || []).slice(0, 2).join(" • ");
+          return `
+            <div class="card">
+              <p class="card-title">${g.title}</p>
+              ${metrics ? `<p class="card-sub"><strong>Метрики:</strong> ${metrics}</p>` : ""}
+              ${kpi ? `<p class="card-sub"><strong>KPI:</strong> ${kpi}</p>` : ""}
+            </div>
+          `;
+        }).join("");
+        return `
+          <div class="col">
+            <div class="col-title">${levelName}</div>
+            ${cards}
+          </div>
+        `;
+      }).join("");
+
+      const rows = payload.goals.map(g => `
+        <tr>
+          <td>${g.level}</td>
+          <td>${g.title}</td>
+          <td>${(g.metrics || []).join("<br>") || "—"}</td>
+          <td>${(g.kpi || []).join("<br>") || "—"}</td>
+          <td>
+            ${(g.clientData || []).length ? "<div><strong>Клиент:</strong> " + g.clientData.join("; ") + "</div>" : ""}
+            ${(g.altSources || []).length ? "<div><strong>Альт.:</strong> " + g.altSources.join("; ") + "</div>" : ""}
+            ${(g.freeSources || []).length ? "<div><strong>Бесплатно:</strong> " + g.freeSources.join("; ") + "</div>" : ""}
+            ${(!g.clientData?.length && !g.altSources?.length && !g.freeSources?.length) ? "—" : ""}
+          </td>
+        </tr>
+      `).join("");
+
+      const html = `
+        <html>
+          <head><meta charset="UTF-8"><title>Итоговая страница</title><style>${styles}</style></head>
+          <body>
+            <div class="page">
+              <h1>Итоговый лендинг</h1>
+              ${payload.intro ? `<div class="intro">${payload.intro.replace(/\n/g, "<br>")}</div>` : `<div class="muted">Вводная не заполнена</div>`}
+              <div class="ladder">${ladderColumns}</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Уровень</th>
+                    <th>Цель/боль</th>
+                    <th>Метрики</th>
+                    <th>KPI</th>
+                    <th>Источники</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </body>
+        </html>
+      `;
+      const w = window.open("", "_blank");
+      w.document.write(html);
+      w.document.close();
+    }
+
+    function renderSummary() {
+      state.summaryGenerated = true;
+      const selectedGoals = getSelectedGoalsSorted();
+
+      if (!selectedGoals.length) {
+        summaryContentEl.className = "empty";
+        summaryContentEl.textContent = "Добавьте цели, чтобы построить итоговую таблицу.";
+        jsonOutputEl.style.display = "none";
+        return;
+      }
+
+      const rows = selectedGoals.map(orig => {
+        const g = applyOverrides(orig);
+        return `
+        <tr data-id="${g.id}">
+          <td>${levelName(g.level)}</td>
+          <td><input class="editable small" value="${g.title}" data-field="title"></td>
+          <td><textarea class="editable" data-field="metrics">${(g.metrics || []).join("\n")}</textarea></td>
+          <td><textarea class="editable" data-field="kpiTargets">${(g.kpiTargets || []).join("\n")}</textarea></td>
+          <td>
+            <div class="stacked">
+              <textarea class="editable" data-field="clientData" placeholder="Данные клиента">${(g.clientData || []).join("\n")}</textarea>
+              <textarea class="editable" data-field="altSources" placeholder="Альтернативные источники">${(g.altSources || []).join("\n")}</textarea>
+              <textarea class="editable" data-field="freeSources" placeholder="Бесплатные источники">${(g.freeSources || []).join("\n")}</textarea>
+            </div>
+          </td>
+        </tr>
+      `;
+      }).join("");
+
+      summaryContentEl.className = "";
+      summaryContentEl.innerHTML = `
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th>Уровень</th>
+              <th>Цель/боль</th>
+              <th>Метрики</th>
+              <th>KPI</th>
+              <th>Источники</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+
+      summaryContentEl.querySelectorAll("tr").forEach(row => {
+        const goalId = row.dataset.id;
+        row.querySelectorAll(".editable").forEach(input => {
+          if (input.tagName === "TEXTAREA") {
+            input.style.height = "auto";
+            input.style.height = input.scrollHeight + 2 + "px";
+            input.addEventListener("input", () => {
+              input.style.height = "auto";
+              input.style.height = input.scrollHeight + 2 + "px";
+            });
+          }
+          input.onchange = () => updateOverride(goalId, input.dataset.field, input.value);
+        });
+      });
+
+      const payload = buildLandingPayload();
+      jsonOutputEl.value = JSON.stringify(payload, null, 2);
+      jsonOutputEl.style.display = "block";
+    }
+
+    function render() {
+      renderLadder();
+      renderDetails();
+      renderSelectedList();
+      if (state.summaryGenerated) renderSummary();
+    }
+
+    function handleInput() {
+      const query = goalInput.value;
+      renderSuggestions(query);
+    }
+
+    goalInput.addEventListener("input", handleInput);
+    goalInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const results = searchGoals(goalInput.value);
+        if (results.length) {
+          addSelected(results[0].id);
+          goalInput.value = "";
+          suggestionsEl.classList.remove("visible");
+        }
+      }
+      if (e.key === "Escape") {
+        suggestionsEl.classList.remove("visible");
+      }
+    });
+
+    generateBtn.onclick = () => {
+      renderSummary();
+      openLandingPage();
+    };
+    refreshBtn.onclick = () => renderSummary();
+    clearBtn.onclick = () => {
+      state.selectedIds = [];
+      state.activeId = goals[0]?.id;
+      state.summaryGenerated = false;
+      summaryContentEl.className = "empty";
+      summaryContentEl.textContent = "Нажмите “Сгенерировать итог”, чтобы собрать таблицу и JSON.";
+      jsonOutputEl.style.display = "none";
+      render();
+    };
+    introInput.value = state.intro;
+    introInput.addEventListener("input", () => {
+      state.intro = introInput.value;
+      saveIntro(state.intro);
+      if (state.summaryGenerated) renderSummary();
+    });
+    downloadJsonBtn.onclick = () => {
+      if (!state.summaryGenerated) renderSummary();
+      const blob = new Blob([jsonOutputEl.value || "[]"], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "ladder-goals.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+    openPageBtn.onclick = () => {
+      if (!state.summaryGenerated) renderSummary();
+      openLandingPage();
+    };
+    toggleViewBtn.onclick = () => {
+      state.view = state.view === "builder" ? "landing" : "builder";
+      document.body.classList.toggle("landing-mode", state.view === "landing");
+      toggleViewBtn.textContent = state.view === "landing" ? "Вернуться к лестнице" : "Полный экран итога";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+    printBtn.onclick = () => window.print();
+
+    render();
+  </script>
+</body>
+</html>
+
